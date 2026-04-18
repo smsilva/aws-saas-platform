@@ -136,7 +136,7 @@ O valor do cookie é o `id_token` JWT do Cognito. O Istio `RequestAuthentication
 ## Testes
 
 ```bash
-cd lab/aws/eks/services/callback-handler
+cd services/callback-handler
 .venv/bin/pytest tests/ -v
 ```
 

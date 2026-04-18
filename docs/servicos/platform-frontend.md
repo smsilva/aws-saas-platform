@@ -94,7 +94,7 @@ URL montada: `https://<COGNITO_DOMAIN>/oauth2/authorize?<params>`
 ## Testes
 
 ```bash
-cd lab/aws/eks/services/platform-frontend
+cd services/platform-frontend
 .venv/bin/pytest tests/ -v
 ```
 

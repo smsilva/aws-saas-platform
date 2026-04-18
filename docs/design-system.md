@@ -58,9 +58,8 @@ O arquivo `design/index.html` é um sandbox autocontido com todas as telas (home
 **Para mudanças em tokens ou componentes base**, edite `design/shared/tokens.css` ou `design/shared/base.css` diretamente — o efeito é imediato no sandbox sem reiniciar o servidor.
 
 ```bash
-# Obrigatório: servir a partir de lab/aws/eks/, não de design/
+# Obrigatório: servir a partir da raiz do repositório, não de design/
 # O Python http.server bloqueia "../" — os paths /services/... só resolvem da raiz
-cd lab/aws/eks
 python3 -m http.server 8080
 ```
 

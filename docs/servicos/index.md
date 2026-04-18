@@ -44,7 +44,7 @@ sequenceDiagram
 ## Executar localmente
 
 ```bash
-cd lab/aws/eks/services/<serviço>
+cd services/<serviço>
 python3 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/pytest tests/ -v

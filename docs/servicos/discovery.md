@@ -111,7 +111,7 @@ A decisão de adicionar cache em memória (TTL, invalidação) está em aberto. 
 ## Testes
 
 ```bash
-cd lab/aws/eks/services/discovery
+cd services/discovery
 .venv/bin/pytest tests/ -v
 ```
 

@@ -3,6 +3,9 @@ site_description: >
   Laboratório de EKS com VPC, ALB, Istio Gateway, WAF, Cognito e DynamoDB.
   Plataforma SaaS multi-tenant com autenticação federada via múltiplos IdPs.
 site_author: Silvio Silva
+site_url: https://smsilva.github.io/aws-saas-platform/
+repo_url: https://github.com/smsilva/aws-saas-platform
+repo_name: smsilva/aws-saas-platform
 
 docs_dir: docs
 
