@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+LM_STUDIO_MODELS_DIR="${HOME}/.cache/lm-studio/models"
+PULL_MODEL="${OLLAMA_MODEL_NAME:-qwen2.5:7b}"
+
+echo "Buscando modelo Qwen em ${LM_STUDIO_MODELS_DIR}..."
+
+if [[ -d "${LM_STUDIO_MODELS_DIR}" ]]; then
+  gguf_path="$(find "${LM_STUDIO_MODELS_DIR}" -iname "*.gguf" | grep --ignore-case "qwen" | head --lines=1 || true)"
+
+  if [[ -n "${gguf_path}" ]]; then
+    echo "Modelo encontrado: ${gguf_path}"
+    export OLLAMA_MODEL_PATH="${gguf_path}"
+    export OLLAMA_MODEL_SOURCE="local"
+    return 0 2>/dev/null || exit 0
+  fi
+fi
+
+echo "Nenhum GGUF do LM Studio encontrado. Fazendo pull: ${PULL_MODEL}"
+ollama pull "${PULL_MODEL}"
+export OLLAMA_MODEL_NAME="${PULL_MODEL}"
+export OLLAMA_MODEL_SOURCE="registry"

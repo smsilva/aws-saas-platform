@@ -1,0 +1,6 @@
+FROM __MODEL_PATH__
+
+PARAMETER num_ctx    64000
+PARAMETER num_gpu    32
+PARAMETER num_thread 6
+PARAMETER num_batch  512
