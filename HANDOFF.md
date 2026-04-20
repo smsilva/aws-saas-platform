@@ -91,6 +91,10 @@ Os gotchas detalhados com soluções estão em `local/docs/lessons-learned.md`. 
 - [ ] **Decode JWT na página de teste**: `test.html` exibir claims decodificados do JWT (header + payload) ao lado do token bruto.
 - [ ] **Screenshots para documentação**: tirar prints das telas principais (login, redirecionamento, página do tenant, isolamento 403) para enriquecer `docs/`.
 
+### P1 — Compatibilidade Cognito (logout)
+
+- [ ] **Parametrizar nome do param de redirect no logout** (`tenant-frontend`): o código usa `post_logout_redirect_uri` (Keycloak/OIDC). O Cognito usa `logout_uri`. Quando ativar `IDP_LOGOUT_URL` nos scripts AWS, será necessário adicionar uma env var `IDP_LOGOUT_REDIRECT_PARAM` (default `post_logout_redirect_uri`; Cognito usa `logout_uri`) e remover `id_token_hint` do fluxo Cognito.
+
 ### P2 — Melhorias importantes
 
 - [ ] **Nomes estáveis para recursos de rede**: avaliar usar `cluster_name` fixo em `env.conf` (ex: `wasp-eks-lab`) para VPC/subnets com nome estável entre sessões.
