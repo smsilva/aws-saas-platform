@@ -32,8 +32,9 @@ Permite desenvolver e testar os serviços Python localmente sem AWS.
 | `discovery` | `SQLiteTenantRepository` + `BACKEND=sqlite\|dynamodb` (default `dynamodb`) + `SQLITE_SEED_FILE` |
 | `platform-frontend` | `IDP_AUTHORIZE_URL` opcional; `identity_provider` omitido quando `idp_name=""`; `tenant_url` usado as-is quando já tem scheme |
 | `callback-handler` | `IDP_TOKEN_URL` opcional; `COOKIE_SECURE` e `COOKIE_DOMAIN` configuráveis por env var |
+| `tenant-frontend` | `IDP_LOGOUT_URL` e `LOGOUT_CALLBACK_URL` configuráveis; logout com IdP redirect + `/logout/callback` |
 
-**Testes:** 16 (platform-frontend) + 34 (discovery) + 26 (callback-handler) = 76 passando.
+**Testes:** 16 (platform-frontend) + 34 (discovery) + 26 (callback-handler) + 38 (tenant-frontend) = 114 passando.
 
 **Fluxo end-to-end validado:**
 
@@ -60,6 +61,7 @@ POST /login (user1@customer1.com)
 - `emptyDir` em `/data` no discovery para o SQLite criar o arquivo `.db`
 - `DISCOVERY_URL` in-cluster (`discovery.discovery.svc.cluster.local:8000`) — DNS do `/etc/hosts` não propaga para pods
 - `COOKIE_SECURE=false` + `COOKIE_DOMAIN=.wasp.local` — cookie enviado em HTTP com domínio correto
+- **namespace `shared` para recursos regionais compartilhados** — `httpbin.wasp.local` movido para `shared` (sem `AuthorizationPolicy`); httpbin permanece nos namespaces de tenant para testes de isolamento via `/httpbin/get`
 
 ### Design Decisions (arquitetura)
 
@@ -80,29 +82,6 @@ Os gotchas detalhados com soluções estão em `local/docs/lessons-learned.md`. 
 - **`--skip-schema-validation` inválido em Helm v3.12** — causa `Error: unknown flag`; removida do `04-install-istio`.
 - **CORS regex `\.` em YAML dentro de `<<EOF` bash** — `\\.` vira `\.`, escape inválido em YAML. Usar `[.]` no lugar de `\.` nos scripts.
 - **Endpoint do discovery é `/tenant?domain=<email_domain>`** — não `/tenants` (404).
-
-## Próxima mudança: namespace `shared` para httpbin
-
-**Problema:** `httpbin.wasp.local` está no namespace `customer1`. O `require-tenant-jwt` bloqueia tokens de outros tenants — `user2@customer2.com` recebe 403 no teste "Public httpbin endpoint".
-
-**Arquitetura alvo:** `httpbin` é um recurso regional compartilhado (simula uma API pública da plataforma, acessível a todos os tenants). Deve viver num namespace `shared`, sem `AuthorizationPolicy` de tenant.
-
-**O que muda:**
-
-| Recurso | De | Para |
-|---|---|---|
-| `httpbin` deployment/service | `customer1` | namespace `shared` |
-| Gateway `httpbin-gateway` | `customer1` | `shared` |
-| VirtualService `httpbin` (`httpbin.wasp.local`) | `customer1` → `httpbin.customer1.svc` | `shared` → `httpbin.shared.svc` |
-| AuthorizationPolicy/RequestAuthentication | — | nenhuma (endpoint público) |
-| `httpbin` em `customer1` e `customer2` | permanece | apenas para testes de isolamento via `/<tenant>/httpbin/get` |
-| `scripts/destroy` | — | adicionar deleção do namespace `shared` na ordem correta |
-
-**Scripts a modificar:** `local/scripts/06-deploy-services`, `local/scripts/destroy`.
-
-**Nota:** `/etc/hosts` não precisa de nova entrada — `httpbin.wasp.local` já está roteado pelo Istio IngressGateway via HAProxy.
-
----
 
 ## Backlog
 
