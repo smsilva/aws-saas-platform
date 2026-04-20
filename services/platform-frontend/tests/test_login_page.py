@@ -131,3 +131,17 @@ def test_post_login_return_url_uses_tenant_url_as_is_when_scheme_present(
         response.headers["location"], "test-secret-key-long-enough-for-hs256"
     )
     assert payload["return_url"] == "http://customer1.wasp.local:32080"
+
+
+def test_post_login_includes_prompt_login(api_client, mock_discovery_with_customer1):
+    """Authorize URL must include prompt=login to force Keycloak to show the login form.
+
+    Without prompt=login, Keycloak reuses an existing SSO session from a previous user,
+    causing the callback to receive a token for the wrong tenant and returning 403.
+    This is especially important in shared-browser scenarios (e.g. switching between
+    user1@customer1.com and user2@customer2.com).
+    """
+    response = api_client.post("/login", data={"email": "smsilva@gmail.com"})
+
+    assert response.status_code == 302
+    assert "prompt=login" in response.headers["location"]

@@ -31,6 +31,7 @@ def build_cognito_authorize_url(
         "response_type": "code",
         "scope": "openid email profile",
         "state": state,
+        "prompt": "login",
     }
     if idp_name:
         params["identity_provider"] = idp_name
