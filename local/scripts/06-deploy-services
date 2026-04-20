@@ -554,6 +554,10 @@ data:
   PLATFORM_URL: "http://${domain}:${haproxy_nodeport}"
   CUSTOMER1_URL: "http://customer1.${domain}:${haproxy_nodeport}"
   CUSTOMER2_URL: "http://customer2.${domain}:${haproxy_nodeport}"
+  IDP_LOGOUT_URL: "http://idp.${domain}:${haproxy_nodeport}/realms/wasp/protocol/openid-connect/logout"
+  LOGOUT_CALLBACK_URL: "http://customer1.${domain}:${haproxy_nodeport}/logout/callback"
+  COOKIE_DOMAIN: ".${domain}"
+  COOKIE_SECURE: "false"
   LOG_LEVEL: "INFO"
 ---
 apiVersion: apps/v1
