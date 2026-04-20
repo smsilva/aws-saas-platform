@@ -23,6 +23,7 @@ CUSTOMER1_URL = os.getenv("CUSTOMER1_URL", "https://customer1.wasp.silvios.me")
 CUSTOMER2_URL = os.getenv("CUSTOMER2_URL", "https://customer2.wasp.silvios.me")
 IDP_LOGOUT_URL = os.getenv("IDP_LOGOUT_URL", "")
 LOGOUT_CALLBACK_URL = os.getenv("LOGOUT_CALLBACK_URL", "")
+IDP_CLIENT_ID = os.getenv("IDP_CLIENT_ID", "")
 
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="WASP Tenant Frontend", version="1.0.0")
@@ -144,6 +145,8 @@ def logout(request: Request):
         id_token = request.cookies.get("session")
         if id_token:
             params["id_token_hint"] = id_token
+        if IDP_CLIENT_ID:
+            params["client_id"] = IDP_CLIENT_ID
         return RedirectResponse(url=f"{IDP_LOGOUT_URL}?{urlencode(params)}", status_code=302)
     return _clear_session_redirect(PLATFORM_URL)
 
