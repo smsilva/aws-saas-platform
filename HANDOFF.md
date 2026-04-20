@@ -81,6 +81,29 @@ Os gotchas detalhados com soluções estão em `local/docs/lessons-learned.md`. 
 - **CORS regex `\.` em YAML dentro de `<<EOF` bash** — `\\.` vira `\.`, escape inválido em YAML. Usar `[.]` no lugar de `\.` nos scripts.
 - **Endpoint do discovery é `/tenant?domain=<email_domain>`** — não `/tenants` (404).
 
+## Próxima mudança: namespace `shared` para httpbin
+
+**Problema:** `httpbin.wasp.local` está no namespace `customer1`. O `require-tenant-jwt` bloqueia tokens de outros tenants — `user2@customer2.com` recebe 403 no teste "Public httpbin endpoint".
+
+**Arquitetura alvo:** `httpbin` é um recurso regional compartilhado (simula uma API pública da plataforma, acessível a todos os tenants). Deve viver num namespace `shared`, sem `AuthorizationPolicy` de tenant.
+
+**O que muda:**
+
+| Recurso | De | Para |
+|---|---|---|
+| `httpbin` deployment/service | `customer1` | namespace `shared` |
+| Gateway `httpbin-gateway` | `customer1` | `shared` |
+| VirtualService `httpbin` (`httpbin.wasp.local`) | `customer1` → `httpbin.customer1.svc` | `shared` → `httpbin.shared.svc` |
+| AuthorizationPolicy/RequestAuthentication | — | nenhuma (endpoint público) |
+| `httpbin` em `customer1` e `customer2` | permanece | apenas para testes de isolamento via `/<tenant>/httpbin/get` |
+| `scripts/destroy` | — | adicionar deleção do namespace `shared` na ordem correta |
+
+**Scripts a modificar:** `local/scripts/06-deploy-services`, `local/scripts/destroy`.
+
+**Nota:** `/etc/hosts` não precisa de nova entrada — `httpbin.wasp.local` já está roteado pelo Istio IngressGateway via HAProxy.
+
+---
+
 ## Backlog
 
 ### P1 — Quick wins
