@@ -2,7 +2,7 @@
 
 ## Goal
 
-`lab/aws/eks/local/` — versão offline do lab AWS EKS usando k3d, sem dependências de cloud.
+`local/` — versão offline do lab AWS EKS usando k3d, sem dependências de cloud.
 Permite desenvolver e testar os serviços Python localmente sem AWS.
 
 ## Current Progress
@@ -66,7 +66,7 @@ POST /login (user1@customer1.com)
 | Decisão | Implementação |
 |---------|---------------|
 | **Tenant por `custom:tenant_id`** | Protocol Mapper no Keycloak injeta claim `custom:tenant_id` no token. Isolamento via Istio `AuthorizationPolicy` que valida `request.auth.claims[custom:tenant_id] == tenant_id`. |
-| **Naming de secrets multi-tenant** | `COGNITO_CLIENT_SECRET_<TENANT_ID>` (ex: `COGNITO_CLIENT_SECRET_CUSTOMER1`). Permite lookup dinâmico no `callback-handler` sem hardcode. |
+| **Naming de secrets multi-tenant** | `IDP_CLIENT_SECRET_<TENANT_ID>` (ex: `IDP_CLIENT_SECRET_CUSTOMER1`). Permite lookup dinâmico no `callback-handler` sem hardcode. |
 | **Backend discovery switchável** | `BACKEND=sqlite\|dynamodb` — SQLite para local, DynamoDB para AWS. Default `dynamodb` para compatibilidade. |
 | **Claims via User Profile** | `tenant_id` declarado no KC 26 User Profile antes de criar usuários. KC descarta atributos não declarados silenciosamente. |
 | **`env.secrets` como fonte única** | Secrets geradas em runtime (`KEYCLOAK_CLIENT_SECRET`, `STATE_JWT_SECRET`) persistidas em `env.secrets` para sessões futuras não regenerarem valores inconsistentes. |
@@ -85,11 +85,8 @@ Os gotchas detalhados com soluções estão em `local/docs/lessons-learned.md`. 
 
 ### P1 — Quick wins
 
-- [x] **Renomear variáveis `COGNITO_*` → `IDP_*` no lab local**: concluído em `e32187a`. `COGNITO_DOMAIN` → `IDP_DOMAIN`, `COGNITO_CLIENT_SECRET_CUSTOMER1/2` → `IDP_CLIENT_SECRET_CUSTOMER1/2` nos scripts e serviços (TDD: 28 + 16 testes passando).
-- [x] **Unificar scripts de IDP** (AWS): concluído em `2d06a1d`. Novo script `configure-idps` com `--tenant`, `--provider google|microsoft`, `--domain`, `--client-id`, `--client-secret-stdin`. Script 16 deletado.
 - [ ] **Script `add-tenant` para lab local** (k3d): análogo ao `configure-idps` AWS, mas para Keycloak — adiciona client + usuário + registro SQLite para um novo tenant sem recriar tudo. Hoje o `08-deploy-customer2` faz isso de forma hardcoded; tornar genérico quando necessário adicionar customer3+.
 - [ ] **Decode JWT na página de teste**: `test.html` exibir claims decodificados do JWT (header + payload) ao lado do token bruto.
-- [x] **Syntax highlight nos resultados de teste**: highlight.js 11.9.0, tema stackoverflow-light/dark, JSON e curl (bash) coloridos. 40 testes passando. Verificado visualmente em `make serve` e FastAPI local. Design sandbox em paridade com o serviço.
 - [ ] **Screenshots para documentação**: tirar prints das telas principais (login, redirecionamento, página do tenant, isolamento 403) para enriquecer `docs/`.
 
 ### P2 — Melhorias importantes
@@ -120,73 +117,6 @@ Os gotchas detalhados com soluções estão em `local/docs/lessons-learned.md`. 
 - [ ] **CNAPP** (Cloud Native Application Protection Platform): avaliar solução unificada que cubra CSPM + CIEM + runtime security (ex: Wiz, Lacework).
 - [ ] **Simulação waspctl com IA**: interação conversacional simulando comandos `waspctl` com respostas simuladas, para exercitar conceitos e documentar o fluxo esperado da CLI.
 
-## Lab Local — Session 2026-04-17 (syntax highlight — parte 2)
-
-Branch: `dev` — commits `4f061f8`, `b501c26`, `5bdc590`
-
-### O que foi feito
-
-Concluído e verificado visualmente o syntax highlight da página de teste do `tenant-frontend`. k3d estava destruído — verificação feita com `make serve` (sandbox estático) e FastAPI local (`uvicorn` na porta 8081 com JWT mockado via Playwright).
-
-| Arquivo | Mudança |
-|---|---|
-| `design/index.html` | CDN highlight.js adicionado (paridade com `test.html`); tema stackoverflow; `shell.min.js`; `highlightShell()` no `buildAccordion` |
-| `services/tenant-frontend/app/templates/test.html` | Tema github → stackoverflow-light/dark; `shell.min.js`; script pós-render para `.curl-code` com `bash` |
-| `services/tenant-frontend/app/static/test-ui.js` | `highlightShell()` usando `bash` (não `shell` — 0 spans); exposto em `initTestPage`; drawer usa `highlightShell` |
-| `services/tenant-frontend/tests/test_routes.py` | `test_test_page_loads_highlightjs_shell_language` |
-| `CLAUDE.md` | Regra design↔serviços expandida: bidirecional, CDN/libs devem estar em ambos os arquivos |
-
-**Testes:** 40 passando.
-
-### Gotchas desta sessão
-
-- **`hljs` language `shell` produz 0 spans para `curl`** — usar `bash` (alias `sh`). O arquivo `shell.min.js` do CDN registra o language como `shell` mas com suporte a `bash`; porém `hljs.highlight(cmd, {language:'shell'})` não colore curl. Trocar para `'bash'` resolve.
-- **Design sandbox (`make serve`) não carregava hljs** — CDN tags do `test.html` não estavam no `design/index.html`. Regra adicionada ao `CLAUDE.md`: dependências externas devem estar em ambos.
-- **Verificação visual sem k3d** — método: subir `uvicorn app.main:app --port 8081` no diretório do serviço + injetar cookie JWT via `playwright add_cookies` antes de navegar. `decode_session` usa `verify_signature=False`, então qualquer JWT HS256 válido funciona.
-
----
-
-## Lab Local — Run 2026-04-16
-
-Commit: `016d9d4` — Branch: `dev`
-
-### Resultados por script
-
-| Script | Status | Duração (s) | Notas |
-|---|---|---|---|
-| `bootstrap` | ✅ | 1 | Todos os pré-requisitos presentes; k3d 5.8.3, kubectl 1.31, helm 3.12.2, docker 29.4.0, istioctl 1.29.1; entradas `/etc/hosts` já existiam |
-| `01-create-cluster` | ✅ | 52 | Cluster k3d `wasp` criado com 3 server nodes (v1.31.5+k3s1); traefik desabilitado; portas 9080, 9443, 32080 mapeadas |
-| `02-install-haproxy-ingress` | ✅ | 3 | HAProxy Ingress instalado via Helm; NodePort 32080 funcional |
-| `03-install-cert-manager` | ✅ | 28 | cert-manager v1.20.2; ClusterIssuer `wasp-local-ca` pronto |
-| `04-install-istio` | ✅ | 35 | Istio 1.24.3; istio-base, istiod, istio-ingressgateway (ClusterIP); Ingress catch-all HAProxy→Istio criado |
-| `05-deploy-keycloak` | ✅ | 79 | Keycloak 26.1 deployado; realm `wasp` configurado; client `wasp-platform`; Protocol Mapper `custom:tenant_id`; `VERIFY_PROFILE` desabilitado; client secret salvo em `env.secrets` |
-| `06-deploy-services` | ✅ | 77 | Build local das 4 imagens (git tag `016d9d4`); import k3d; deploy discovery (SQLite), platform-frontend, callback-handler, customer1 (httpbin + tenant-frontend) |
-| `07-configure-istio-auth` | ✅ | 1 | `RequestAuthentication` + `AuthorizationPolicy` em `customer1`; JWT issuer `http://idp.wasp.local:32080/realms/wasp` |
-| `08-deploy-customer2` | ✅ | 31 | ConfigMap discovery-seed atualizado; callback-handler secret atualizado; namespace `customer2` com Istio auth; rollouts concluídos |
-
-**Tempo total: ~307 s (~5 min 7 s)**
-
-### Smoke tests (todos passaram)
-
-| Endpoint | HTTP | Esperado |
-|---|---|---|
-| `http://wasp.local:32080/health` | 200 | ✅ |
-| `http://discovery.wasp.local:32080/health` | 200 | ✅ |
-| `http://auth.wasp.local:32080/health` | 200 | ✅ |
-| `http://customer1.wasp.local:32080/` (sem JWT) | 403 | ✅ |
-| `http://customer2.wasp.local:32080/` (sem JWT) | 403 | ✅ |
-| `GET /tenant?domain=customer1.com` | tenant_id=customer1 | ✅ |
-| `GET /tenant?domain=customer2.com` | tenant_id=customer2 | ✅ |
-
-### Problemas encontrados
-
-Nenhum — todos os 8 scripts passaram sem falha na primeira execução. Ambiente estava em estado limpo (cluster k3d não existia).
-
----
-
-## Next Steps
-
-- Ver Backlog abaixo.
 
 ## Key Files
 
@@ -202,7 +132,7 @@ Nenhum — todos os 8 scripts passaram sem falha na primeira execução. Ambient
 
 ## Context
 
-- Diretório local: `lab/aws/eks/local/` (junto aos serviços, coexiste com `lab/aws/eks/scripts/`)
+- Diretório local: `local/` (junto aos serviços, coexiste com `scripts/`)
 - Domínio local: `wasp.local` (porta `32080` para acesso externo)
 - `/etc/hosts`: `127.0.0.1` para `wasp.local`, `auth.wasp.local`, `discovery.wasp.local`, `idp.wasp.local`, `customer1.wasp.local`, `customer2.wasp.local`
 - customer1 e customer2 usam o mesmo client Keycloak (`wasp-platform`) — isolamento via `custom:tenant_id`
