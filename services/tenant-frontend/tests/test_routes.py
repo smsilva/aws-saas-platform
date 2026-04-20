@@ -303,6 +303,20 @@ def test_logout_includes_id_token_hint(authenticated_client, monkeypatch):
     assert "id_token_hint=" in location
 
 
+def test_logout_includes_client_id(authenticated_client, monkeypatch):
+    """Keycloak 26 requires client_id in the logout URL to terminate the SSO session.
+
+    Without client_id, Keycloak may return success but keep the SSO session alive,
+    causing the next login to reuse the previous user's session silently.
+    """
+    monkeypatch.setattr("app.main.IDP_LOGOUT_URL", "http://idp.wasp.local:32080/realms/wasp/protocol/openid-connect/logout")
+    monkeypatch.setattr("app.main.LOGOUT_CALLBACK_URL", "http://customer1.wasp.local:32080/logout/callback")
+    monkeypatch.setattr("app.main.IDP_CLIENT_ID", "wasp-platform")
+    response = authenticated_client.get("/logout")
+    location = response.headers["location"]
+    assert "client_id=wasp-platform" in location
+
+
 def test_logout_does_not_clear_cookie_immediately(authenticated_client, monkeypatch):
     monkeypatch.setattr("app.main.IDP_LOGOUT_URL", "http://idp.wasp.local:32080/realms/wasp/protocol/openid-connect/logout")
     monkeypatch.setattr("app.main.LOGOUT_CALLBACK_URL", "http://customer1.wasp.local:32080/logout/callback")
