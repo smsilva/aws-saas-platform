@@ -78,6 +78,7 @@ POST /login (user1@customer1.com)
 Os gotchas detalhados com soluções estão em `local/docs/lessons-learned.md`. Resumo dos não óbvios:
 
 - **`rollout restart` necessário quando Secret/ConfigMap muda** — sem troca de imagem, pods não remontam env vars automaticamente. `kubectl rollout restart deployment/<name>`.
+- **`docker build` manual quebra o CSS compartilhado** — `app/static/shared` é symlink para `../../../../design/shared`. Docker não segue symlinks fora do build context. Sempre substituir o symlink por cópia real antes do build e restaurar depois (ver `_inject_shared`/`_restore_shared` em `06-deploy-services`). Nunca rodar `docker build` diretamente nos serviços de frontend.
 - **Subagente sem permissão bash** — subagentes via Agent tool não herdam permissões da sessão principal. Reiniciar o Claude Code ou rodar scripts manualmente.
 - **`--skip-schema-validation` inválido em Helm v3.12** — causa `Error: unknown flag`; removida do `04-install-istio`.
 - **CORS regex `\.` em YAML dentro de `<<EOF` bash** — `\\.` vira `\.`, escape inválido em YAML. Usar `[.]` no lugar de `\.` nos scripts.
