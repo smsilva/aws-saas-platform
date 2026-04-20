@@ -71,6 +71,39 @@ def test_test_page_embeds_five_test_cases(authenticated_client):
     assert "customer2-mock.wasp.silvios.me/httpbin/get" in body
 
 
+def test_httpbin_url_uses_external_url_for_customer2(api_client, monkeypatch):
+    """HTTPBIN_URL must be the external URL (via HAProxy), never the internal k8s service address.
+
+    When customer2 is configured with HTTPBIN_URL=http://httpbin:8000 (internal),
+    the test page shows that URL instead of the externally-routable one — this
+    breaks the browser-side fetch since the client cannot reach cluster-internal addresses.
+    """
+    monkeypatch.setattr("app.main.HTTPBIN_URL", "http://httpbin.wasp.local:32080")
+    monkeypatch.setattr("app.main.PLATFORM_URL", "http://wasp.local:32080")
+    monkeypatch.setattr("app.main.CUSTOMER1_URL", "http://customer1.wasp.local:32080")
+    monkeypatch.setattr("app.main.CUSTOMER2_URL", "http://customer2.wasp.local:32080")
+    monkeypatch.setattr("app.main.CUSTOMER1_URL", "http://customer1.wasp.local:32080")
+
+    claims = {
+        "name": "User 2",
+        "email": "user2@customer2.com",
+        "custom:tenant_id": "customer2",
+        "sub": "uuid-customer2",
+        "iss": "http://idp.wasp.local:32080/realms/wasp",
+        "aud": "wasp-platform",
+    }
+    import jwt as _jwt
+    token = _jwt.encode(claims, "test-secret", algorithm="HS256")
+    api_client.cookies.set("session", token)
+
+    response = api_client.get("/test")
+    assert response.status_code == 200
+    body = response.text
+
+    assert "httpbin.wasp.local:32080" in body
+    assert "httpbin:8000" not in body
+
+
 def test_test_page_starts_with_all_idle(authenticated_client):
     """Page loads with all tests idle — no results until browser runs them.
 
@@ -251,14 +284,43 @@ def test_profile_shows_all_claims(authenticated_client):
 
 # ── Logout (/logout) ─────────────────────────────────────────────────────────
 
-def test_logout_redirects_to_platform_url(authenticated_client):
+def test_logout_redirects_to_idp_logout_url(authenticated_client, monkeypatch):
+    monkeypatch.setattr("app.main.IDP_LOGOUT_URL", "http://idp.wasp.local:32080/realms/wasp/protocol/openid-connect/logout")
+    monkeypatch.setattr("app.main.LOGOUT_CALLBACK_URL", "http://customer1.wasp.local:32080/logout/callback")
     response = authenticated_client.get("/logout")
     assert response.status_code == 302
-    assert "wasp.silvios.me" in response.headers["location"]
+    location = response.headers["location"]
+    assert "idp.wasp.local" in location
+    assert "post_logout_redirect_uri" in location
+    assert "logout%2Fcallback" in location or "/logout/callback" in location
 
 
-def test_logout_clears_session_cookie(authenticated_client):
+def test_logout_includes_id_token_hint(authenticated_client, monkeypatch):
+    monkeypatch.setattr("app.main.IDP_LOGOUT_URL", "http://idp.wasp.local:32080/realms/wasp/protocol/openid-connect/logout")
+    monkeypatch.setattr("app.main.LOGOUT_CALLBACK_URL", "http://customer1.wasp.local:32080/logout/callback")
     response = authenticated_client.get("/logout")
+    location = response.headers["location"]
+    assert "id_token_hint=" in location
+
+
+def test_logout_does_not_clear_cookie_immediately(authenticated_client, monkeypatch):
+    monkeypatch.setattr("app.main.IDP_LOGOUT_URL", "http://idp.wasp.local:32080/realms/wasp/protocol/openid-connect/logout")
+    monkeypatch.setattr("app.main.LOGOUT_CALLBACK_URL", "http://customer1.wasp.local:32080/logout/callback")
+    response = authenticated_client.get("/logout")
+    set_cookie = response.headers.get("set-cookie", "")
+    assert "session=" not in set_cookie
+
+
+# ── Logout callback (/logout/callback) ───────────────────────────────────────
+
+def test_logout_callback_clears_session_cookie(api_client):
+    response = api_client.get("/logout/callback")
     set_cookie = response.headers.get("set-cookie", "")
     assert "session=" in set_cookie
     assert "max-age=0" in set_cookie.lower() or 'session=""' in set_cookie
+
+
+def test_logout_callback_redirects_to_platform_url(api_client):
+    response = api_client.get("/logout/callback")
+    assert response.status_code == 302
+    assert "wasp.silvios.me" in response.headers["location"]

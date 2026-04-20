@@ -21,6 +21,8 @@ HTTPBIN_URL = os.getenv("HTTPBIN_URL", "http://httpbin.wasp.local:32080")
 PLATFORM_URL = os.getenv("PLATFORM_URL", "https://wasp.silvios.me")
 CUSTOMER1_URL = os.getenv("CUSTOMER1_URL", "https://customer1.wasp.silvios.me")
 CUSTOMER2_URL = os.getenv("CUSTOMER2_URL", "https://customer2.wasp.silvios.me")
+IDP_LOGOUT_URL = os.getenv("IDP_LOGOUT_URL", "")
+LOGOUT_CALLBACK_URL = os.getenv("LOGOUT_CALLBACK_URL", "")
 
 # ── App ───────────────────────────────────────────────────────────────────────
 app = FastAPI(title="WASP Tenant Frontend", version="1.0.0")
@@ -135,13 +137,31 @@ def profile(request: Request):
 
 
 @app.get("/logout")
-def logout():
-    response = RedirectResponse(url=PLATFORM_URL, status_code=302)
+def logout(request: Request):
+    if IDP_LOGOUT_URL and LOGOUT_CALLBACK_URL:
+        from urllib.parse import urlencode
+        params = {"post_logout_redirect_uri": LOGOUT_CALLBACK_URL}
+        id_token = request.cookies.get("session")
+        if id_token:
+            params["id_token_hint"] = id_token
+        return RedirectResponse(url=f"{IDP_LOGOUT_URL}?{urlencode(params)}", status_code=302)
+    return _clear_session_redirect(PLATFORM_URL)
+
+
+@app.get("/logout/callback")
+def logout_callback():
+    return _clear_session_redirect(PLATFORM_URL)
+
+
+def _clear_session_redirect(url: str):
+    cookie_domain = os.getenv("COOKIE_DOMAIN", ".wasp.silvios.me")
+    cookie_secure = os.getenv("COOKIE_SECURE", "true").lower() != "false"
+    response = RedirectResponse(url=url, status_code=302)
     response.delete_cookie(
         key="session",
-        domain=".wasp.silvios.me",
+        domain=cookie_domain,
         path="/",
-        secure=True,
+        secure=cookie_secure,
         httponly=True,
         samesite="lax",
     )
