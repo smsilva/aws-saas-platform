@@ -3,3 +3,5 @@
 
 # MkDocs build output
 site/
+
+**/env.secrets
