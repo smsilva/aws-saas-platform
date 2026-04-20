@@ -3,6 +3,7 @@
 # - discovery:          BACKEND=sqlite, seed via ConfigMap tenants.json
 # - platform-frontend:  IDP_AUTHORIZE_URL apontando para Keycloak
 # - callback-handler:   IDP_TOKEN_URL apontando para Keycloak
+# - shared:             httpbin público (sem AuthorizationPolicy de tenant)
 # - customer1:          httpbin interno + tenant-frontend
 
 set -euo pipefail
@@ -459,6 +460,93 @@ spec:
 EOF
 
 # =============================================================================
+# Deploy: shared (httpbin público — recurso regional, sem AuthorizationPolicy)
+# =============================================================================
+echo "Deploying: shared/httpbin..."
+
+kubectl apply -f - <<EOF
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: shared
+  labels:
+    istio-injection: enabled
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpbin
+  namespace: shared
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: httpbin
+  template:
+    metadata:
+      labels:
+        app: httpbin
+    spec:
+      containers:
+        - name: httpbin
+          image: kennethreitz/httpbin
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin
+  namespace: shared
+spec:
+  selector:
+    app: httpbin
+  ports:
+    - port: 8000
+      targetPort: 80
+---
+apiVersion: networking.istio.io/v1
+kind: Gateway
+metadata:
+  name: httpbin-gateway
+  namespace: shared
+spec:
+  selector:
+    app: istio-ingressgateway
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "httpbin.${domain}"
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: httpbin
+  namespace: shared
+spec:
+  hosts:
+    - "httpbin.${domain}"
+  gateways:
+    - httpbin-gateway
+  http:
+    - corsPolicy:
+        allowOrigins:
+          - regex: "http://.*[.]${domain}:${haproxy_nodeport}"
+        allowMethods: ["GET", "OPTIONS"]
+        allowHeaders: ["authorization", "content-type"]
+        maxAge: "24h"
+      route:
+        - destination:
+            host: httpbin
+            port:
+              number: 8000
+EOF
+
+# =============================================================================
 # Deploy: customer1 (httpbin interno + tenant-frontend)
 # =============================================================================
 echo "Deploying: customer1..."
@@ -504,45 +592,6 @@ spec:
   ports:
     - port: 8000
       targetPort: 80
----
-apiVersion: networking.istio.io/v1
-kind: Gateway
-metadata:
-  name: httpbin-gateway
-  namespace: customer1
-spec:
-  selector:
-    app: istio-ingressgateway
-  servers:
-    - port:
-        number: 80
-        name: http
-        protocol: HTTP
-      hosts:
-        - "httpbin.${domain}"
----
-apiVersion: networking.istio.io/v1
-kind: VirtualService
-metadata:
-  name: httpbin
-  namespace: customer1
-spec:
-  hosts:
-    - "httpbin.${domain}"
-  gateways:
-    - httpbin-gateway
-  http:
-    - corsPolicy:
-        allowOrigins:
-          - regex: "http://.*[.]${domain}:${haproxy_nodeport}"
-        allowMethods: ["GET", "OPTIONS"]
-        allowHeaders: ["authorization", "content-type"]
-        maxAge: "24h"
-      route:
-        - destination:
-            host: httpbin
-            port:
-              number: 8000
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -673,7 +722,7 @@ EOF
 # =============================================================================
 echo "Aguardando deployments..."
 
-for ns_deploy in discovery/discovery platform/platform-frontend auth/callback-handler customer1/httpbin customer1/tenant-frontend; do
+for ns_deploy in discovery/discovery platform/platform-frontend auth/callback-handler shared/httpbin customer1/httpbin customer1/tenant-frontend; do
   ns="${ns_deploy%%/*}"
   deploy="${ns_deploy##*/}"
   kubectl -n "${ns}" wait deployment/"${deploy}" \
@@ -688,7 +737,7 @@ done
 echo ""
 echo "--- Verificação ---"
 
-for ns in discovery platform auth customer1; do
+for ns in discovery platform auth shared customer1; do
   echo ""
   echo "Namespace: ${ns}"
   kubectl -n "${ns}" get deployment,svc,gateway,virtualservice 2>/dev/null
@@ -703,6 +752,7 @@ echo "Endpoints disponíveis (porta ${haproxy_nodeport}):"
 echo "  http://${domain}:${haproxy_nodeport}                  → platform-frontend"
 echo "  http://discovery.${domain}:${haproxy_nodeport}/health → discovery"
 echo "  http://auth.${domain}:${haproxy_nodeport}/health      → callback-handler"
+echo "  http://httpbin.${domain}:${haproxy_nodeport}/get      → shared/httpbin (público)"
 echo "  http://customer1.${domain}:${haproxy_nodeport}        → tenant-frontend"
 echo ""
 echo "Próximo passo: scripts/07-configure-istio-auth"
