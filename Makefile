@@ -1,4 +1,4 @@
-.PHONY: serve stop test test-callback-handler test-tenant-frontend test-platform-frontend test-discovery smoke-test
+.PHONY: serve stop setup test test-callback-handler test-tenant-frontend test-platform-frontend test-discovery smoke-test
 
 SERVICES_DIR := services
 
@@ -8,6 +8,12 @@ serve:
 
 stop:
 	@pkill --full "python3 -m http.server 8080" || true
+
+setup:
+	@for svc in callback-handler tenant-frontend platform-frontend discovery; do \
+		echo "==> $$svc"; \
+		cd $(SERVICES_DIR)/$$svc && python3 -m venv .venv && .venv/bin/pip install --quiet -r requirements-dev.txt && cd ../..; \
+	done
 
 test: test-callback-handler test-tenant-frontend test-platform-frontend test-discovery
 
