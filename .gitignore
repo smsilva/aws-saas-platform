@@ -26,3 +26,4 @@ override.tf.json
 # Logs e artefatos temporários
 **/*.log
 **/docker_build_temp
+**/*.zip
