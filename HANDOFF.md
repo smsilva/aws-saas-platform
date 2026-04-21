@@ -156,11 +156,20 @@ Usa `terraform-aws-modules/eks ~> 21.18` internamente (complexidade de IAM/OIDC 
 
 **Próximo passo:** Etapa 6 — Módulo DynamoDB
 
-#### Etapa 6 — Módulo DynamoDB
-- `src/dynamodb/main.tf` — `aws_dynamodb_table` tenant-registry; pk HASH; GSI client-id-index; PROVISIONED 5/5
-- `src/dynamodb/variables.tf` — table_name, tags
-- `src/dynamodb/outputs.tf` — id, instance, arn
-- Atualizar exemplo: adicionar module "dynamodb"
+#### Etapa 6 — Módulo DynamoDB ✅
+- `src/dynamodb/main.tf` — `aws_dynamodb_table` PROVISIONED; `dynamic "attribute"` para lista de campos; `dynamic "global_secondary_index"` com `key_schema` block interno (API não deprecated do provider v6)
+- `src/dynamodb/variables.tf` — `table_name`, `hash_key`, `attributes` (list `{name, type}`), `global_secondary_indexes` (list com opcionais: `projection_type`, `read_capacity`, `write_capacity`), `read_capacity`, `write_capacity`, `tags`
+- `src/dynamodb/outputs.tf` — `id`, `arn`, `instance`
+- `examples/lab/main.tf` — `module "dynamodb"` com `tenant-registry`, pk `pk`, GSI `client-id-index` em `cognito_app_client_id`
+- `terraform validate` ✅ e `terraform plan` ✅ — **50 recursos planejados** (49 anteriores + 1 DynamoDB)
+
+**Decisões tomadas (Etapa 6):**
+- `global_secondary_index.hash_key` deprecated no provider v6 — substituído por bloco `key_schema { attribute_name, key_type }` internamente; interface da variável mantém `hash_key` string para simplicidade
+- `global_secondary_indexes` como lista (default `[]`) é a "variável que indica se vai ter index" — lista vazia = sem GSI
+- Recurso nomeado `default` (convenção do projeto, não `this`)
+- `attributes` como lista de objetos `{name, type}` permite declarar todos os atributos usados em índices no exemplo
+
+**Próximo passo:** Etapa 7 — Módulo Cognito
 
 #### Etapa 7 — Módulo Cognito
 - `src/cognito/lambda/lambda_function.py` — pre-token generation (injeta custom:tenant_id via DynamoDB client-id-index)
