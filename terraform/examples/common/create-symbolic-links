@@ -1,0 +1,3 @@
+#!/bin/bash
+ln -s ../common/provider.tf provider.tf
+ln -s ../common/variables.tf variables.tf
