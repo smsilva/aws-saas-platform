@@ -61,21 +61,100 @@ terraform/
 - **Módulos referenciados** com `source = "../../src/<modulo>"`
 - **`output "instance"`** em cada módulo exporta o recurso inteiro; `output "id"` exporta só o ID
 - **`output "kubeconfig"`** (eks) com `sensitive = true`
-- **Versões de provider** com ranges: `>= 5.0.0, < 6.0.0`
+- **Versões de provider** com ranges: `>= 6.0.0, < 7.0.0`
 - **`depends_on`** explícito quando módulos dependem de outros (ex: eks depende de vpc)
 - **`count = local.install_X ? 1 : 0`** para recursos opcionais
 - Nunca colocar backend no módulo (`src/`) — só nos exemplos via `common/provider.tf`
 - Symlinks criados com script `common/create-symbolic-links`; rodar antes do primeiro `terraform init`
 
-### Próximos passos
+#### Convenção de subnets — objetos nomeados
 
-1. Criar `terraform/stack.yaml`
-2. Criar `terraform/examples/common/` (provider.tf + variables.tf + create-symbolic-links)
-3. Criar módulo `terraform/src/vpc/`
-4. Criar módulo `terraform/src/eks/`
-5. Criar módulos `terraform/src/dynamodb/`, `src/cognito/`, `src/waf/`
-6. Criar exemplo `terraform/examples/eks_saas_lab/`
-7. Rodar `create-symbolic-links` + `terraform init` + `terraform plan`
+Subnets definidas como lista de objetos `{ cidr, name, az, public }`, permitindo referência por nome no exemplo:
+
+```hcl
+# em locals do exemplo
+virtual_network_subnets = [
+  { cidr = "10.0.1.0/24", name = "public-1a",  az = "us-east-1a", public = true  },
+  { cidr = "10.0.2.0/24", name = "public-1b",  az = "us-east-1b", public = true  },
+  { cidr = "10.0.3.0/24", name = "private-1a", az = "us-east-1a", public = false },
+  { cidr = "10.0.4.0/24", name = "private-1b", az = "us-east-1b", public = false },
+]
+
+# referência por nome (output do módulo vpc)
+subnet_ids = module.vpc.subnets["private-1a"].id
+```
+
+O módulo VPC expõe `output "subnets"` como `map(object)` keyed por `name`.
+
+#### Módulos locais vs. externos
+
+Módulos em `src/` são **locais** por ora — recursos AWS escritos diretamente, sem wrapper de repositório externo (ex: sem `git@github.com:smsilva/aws-network.git`). Extração para repositório separado é trabalho futuro. Módulos do Terraform Registry público (`terraform-aws-modules/eks`) ainda são permitidos onde a complexidade justifica (ex: EKS com OIDC, IAM roles, managed node groups).
+
+### Versões de providers (verificado 2026-04-21)
+
+| Provider / Module | Versão | Constraint |
+|---|---|---|
+| hashicorp/aws | 6.41.0 | `>= 6.0.0, < 7.0.0` |
+| terraform-aws-modules/eks/aws | 21.18.0 | `~> 21.18` |
+| hashicorp/archive | latest 2.x | `>= 2.0.0, < 3.0.0` |
+
+> `terraform-aws-modules/vpc` **não será usado** — módulo VPC escrito localmente para suportar a convenção de subnets nomeadas.
+
+### Plano incremental (etapas sequenciais)
+
+Cada etapa termina com `terraform validate` (ou apply+destroy) antes de avançar.
+
+#### Etapa 1 — Scaffold
+Criar estrutura de diretórios + arquivos de metadados raiz. Sem código Terraform ainda.
+- `terraform/stack.yaml` — nome, versão tf, config backend S3
+- `terraform/cz.yaml` — commitizen (espelhar `azure-kubernetes/cz.yaml`)
+- Pastas vazias: `src/{vpc,eks,dynamodb,cognito,waf}/` e `examples/{common,eks_saas_lab}/`
+
+#### Etapa 2 — Common provider + symlinks
+Criar config compartilhada de provider, usada via symlink por todos os exemplos.
+- `examples/common/provider.tf` — backend S3 + providers aws/archive
+- `examples/common/variables.tf` — region, domain, cert_arn, tags, google_client_id (sensitive), google_client_secret (sensitive)
+- `examples/common/create-symbolic-links` — script bash que cria symlinks nos exemplos
+
+#### Etapa 3 — Módulo VPC (recursos locais + subnets nomeadas)
+Módulo escrito diretamente com recursos AWS — sem wrapper de módulo externo.
+- `src/vpc/main.tf` — `aws_vpc`, `aws_subnet` (for_each em `var.subnets`), `aws_internet_gateway`, `aws_eip`, `aws_nat_gateway` (em subnet pública com menor índice), `aws_route_table` (public + private), `aws_route_table_association`; EKS subnet tags (elb / internal-elb / cluster owned)
+- `src/vpc/variables.tf` — `name`, `cidr`, `subnets` (list of `{ cidr, name, az, public }`), `tags`
+- `src/vpc/outputs.tf` — `id` (vpc_id), `instance` (aws_vpc), `subnets` (map keyed by name → `{ id, instance }`), `public_subnet_ids`, `private_subnet_ids`
+
+#### Etapa 4 — Exemplo network (checkpoint apply+destroy)
+Criar exemplo mínimo com apenas o módulo VPC. Aplicar e destruir para validar antes de adicionar EKS.
+- `examples/eks_saas_lab/main.tf` — locals (valores de env.conf + subnets nomeadas) + module "vpc"
+- `examples/eks_saas_lab/outputs.tf` — vpc_id, subnet IDs
+- Rodar `create-symbolic-links` → `terraform init` → `terraform validate` → `terraform plan`
+- Opcional: `terraform apply` → `terraform destroy`
+
+#### Etapa 5 — Módulo EKS
+Usa `terraform-aws-modules/eks ~> 21.18` internamente (complexidade de IAM/OIDC justifica).
+- `src/eks/main.tf` — wraps `terraform-aws-modules/eks/aws ~> 21.18`; cluster_endpoint_public_access=true; node group nas subnets privadas (via `module.vpc.private_subnet_ids`)
+- `src/eks/variables.tf` — name, cluster_version, vpc_id, subnet_ids, private_subnet_ids, node_instance_type, node_min/max/desired, tags
+- `src/eks/outputs.tf` — id, instance, cluster_name, cluster_endpoint, oidc_provider_arn, kubeconfig (sensitive)
+- Atualizar exemplo: adicionar module "eks" com `depends_on = [module.vpc]`
+
+#### Etapa 6 — Módulo DynamoDB
+- `src/dynamodb/main.tf` — `aws_dynamodb_table` tenant-registry; pk HASH; GSI client-id-index; PROVISIONED 5/5
+- `src/dynamodb/variables.tf` — table_name, tags
+- `src/dynamodb/outputs.tf` — id, instance, arn
+- Atualizar exemplo: adicionar module "dynamodb"
+
+#### Etapa 7 — Módulo Cognito
+- `src/cognito/lambda/lambda_function.py` — pre-token generation (injeta custom:tenant_id via DynamoDB client-id-index)
+- `src/cognito/main.tf` — archive_file + IAM role/policy + Lambda + permission + User Pool (tenant_id schema) + Google IdP (count-gated) + App Client customer1
+- `src/cognito/variables.tf` — name, domain, dynamodb_table_name, dynamodb_table_arn, google_client_id (sensitive), google_client_secret (sensitive), tags
+- `src/cognito/outputs.tf` — user_pool_id, user_pool_arn, app_client_id, instance
+- Atualizar exemplo: adicionar module "cognito"
+
+#### Etapa 8 — Módulo WAF
+- `src/waf/main.tf` — `aws_wafv2_web_acl` REGIONAL; 3 managed rules (CommonRuleSet p1, KnownBadInputs p2, IpReputation p3); associação ALB opcional (`count = var.alb_arn != "" ? 1 : 0`)
+- `src/waf/variables.tf` — name, alb_arn (default ""), tags
+- `src/waf/outputs.tf` — id, instance, arn
+- Atualizar exemplo: adicionar module "waf"
+- `terraform validate` + `terraform plan` final completo
 
 ---
 
@@ -226,6 +305,6 @@ Os gotchas detalhados com soluções estão em `local/docs/lessons-learned.md`. 
 
 ## Referências externas
 
-- [smsilva.github.io/kubernetes](https://smsilva.github.io/kubernetes) — documentação publicada do projeto
+- [smsilva.github.io/aws-saas-platform](https://smsilva.github.io/aws-saas-platform) — documentação publicada do projeto
 - [Building a Multi-Tenant SaaS Solution Using Amazon EKS](https://aws.amazon.com/pt/blogs/apn/building-a-multi-tenant-saas-solution-using-amazon-eks) — referência de arquitetura multi-tenant
 - [Operating a multi-regional stateless application using Amazon EKS](https://aws.amazon.com/pt/blogs/containers/operating-a-multi-regional-stateless-application-using-amazon-eks) — referência para expansão multi-região
