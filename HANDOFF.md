@@ -12,7 +12,7 @@ Sem `terraform import` — fresh state.
 
 **Backend S3:**
 - Bucket: `silvios-wasp-foundation` (região `us-west-2`)
-- State key: `eks-lab/us-east-1/terraform.tfstate`
+- State key: `terraform/aws-saas-platform/wasp.tfstate`
 
 **Referência de variáveis:** `scripts/env.conf` — região, CIDRs, instance types, tags.
 
@@ -48,7 +48,7 @@ terraform/
 │   │   ├── create-symbolic-links  # script bash que cria os symlinks nos exemplos
 │   │   ├── provider.tf         # backend S3 + provider aws
 │   │   └── variables.tf        # variáveis comuns (region, tags, domain, cert_arn)
-│   └── eks_saas_lab/           # exemplo completo do lab
+│   └── lab/                    # exemplo completo do lab
 │       ├── main.tf             # locals + módulos vpc/eks/dynamodb/cognito/waf
 │       └── outputs.tf
 │       # provider.tf e variables.tf são symlinks para common/
