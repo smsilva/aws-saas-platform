@@ -18,6 +18,9 @@ override.tf.json
 *.tfstate.*
 **/.terraform/
 
+# Claude Code — configurações locais pessoais
+.claude/settings.local.json
+
 # Logs e artefatos temporários
 **/*.log
 **/docker_build_temp
