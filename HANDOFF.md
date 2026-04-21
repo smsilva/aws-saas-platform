@@ -104,30 +104,38 @@ Módulos em `src/` são **locais** por ora — recursos AWS escritos diretamente
 
 Cada etapa termina com `terraform validate` (ou apply+destroy) antes de avançar.
 
-#### Etapa 1 — Scaffold
+#### Etapa 1 — Scaffold ✅
 Criar estrutura de diretórios + arquivos de metadados raiz. Sem código Terraform ainda.
 - `terraform/stack.yaml` — nome, versão tf, config backend S3
 - `terraform/cz.yaml` — commitizen (espelhar `azure-kubernetes/cz.yaml`)
-- Pastas vazias: `src/{vpc,eks,dynamodb,cognito,waf}/` e `examples/{common,eks_saas_lab}/`
+- `terraform/examples/lab/backend.conf` — parâmetros S3 para `tfi` (`--backend-config`); ignorado pelo `.gitignore`
+- Pastas vazias: `src/{vpc,eks,dynamodb,cognito,waf}/` e `examples/{common,lab}/`
 
-#### Etapa 2 — Common provider + symlinks
+#### Etapa 2 — Common provider + symlinks ✅
 Criar config compartilhada de provider, usada via symlink por todos os exemplos.
 - `examples/common/provider.tf` — backend S3 + providers aws/archive
 - `examples/common/variables.tf` — region, domain, cert_arn, tags, google_client_id (sensitive), google_client_secret (sensitive)
 - `examples/common/create-symbolic-links` — script bash que cria symlinks nos exemplos
 
-#### Etapa 3 — Módulo VPC (recursos locais + subnets nomeadas)
+#### Etapa 3 — Módulo VPC (recursos locais + subnets nomeadas) ✅
 Módulo escrito diretamente com recursos AWS — sem wrapper de módulo externo.
 - `src/vpc/main.tf` — `aws_vpc`, `aws_subnet` (for_each em `var.subnets`), `aws_internet_gateway`, `aws_eip`, `aws_nat_gateway` (em subnet pública com menor índice), `aws_route_table` (public + private), `aws_route_table_association`; EKS subnet tags (elb / internal-elb / cluster owned)
-- `src/vpc/variables.tf` — `name`, `cidr`, `subnets` (list of `{ cidr, name, az, public }`), `tags`
+- `src/vpc/variables.tf` — `name`, `cidr`, `subnets` (list of `{ cidr, name, availability_zone, public }`), `tags`
 - `src/vpc/outputs.tf` — `id` (vpc_id), `instance` (aws_vpc), `subnets` (map keyed by name → `{ id, instance }`), `public_subnet_ids`, `private_subnet_ids`
 
-#### Etapa 4 — Exemplo network (checkpoint apply+destroy)
-Criar exemplo mínimo com apenas o módulo VPC. Aplicar e destruir para validar antes de adicionar EKS.
-- `examples/eks_saas_lab/main.tf` — locals (valores de env.conf + subnets nomeadas) + module "vpc"
-- `examples/eks_saas_lab/outputs.tf` — vpc_id, subnet IDs
-- Rodar `create-symbolic-links` → `terraform init` → `terraform validate` → `terraform plan`
-- Opcional: `terraform apply` → `terraform destroy`
+**Decisões tomadas:**
+- Campo `az` renomeado para `availability_zone` para clareza
+- `cluster_name` removido — EKS subnet tags usam `var.name` (VPC e cluster compartilham o mesmo nome)
+- `var.domain` e `var.cert_arn` têm defaults com valores do lab para não exigir `-var` no `terraform plan`
+
+#### Etapa 4 — Exemplo lab (checkpoint validate+plan) ✅
+- `examples/lab/main.tf` — locals com valores fixos + `module "vpc"`
+- `examples/lab/outputs.tf` — vpc_id, public_subnet_ids, private_subnet_ids
+- `provider.tf` e `variables.tf` são symlinks para `common/`
+- `terraform validate` ✅ e `terraform plan` ✅ — 16 recursos planejados
+- `apply` + `destroy` **pendentes** — deixados para quando EKS estiver pronto (Etapa 5)
+
+**Próximo passo:** criar `terraform/Makefile` com targets `init`, `plan`, `apply`, `destroy` apontando para `examples/lab` com `-chdir=examples/lab` e `-backend-config=backend.conf`.
 
 #### Etapa 5 — Módulo EKS
 Usa `terraform-aws-modules/eks ~> 21.18` internamente (complexidade de IAM/OIDC justifica).
