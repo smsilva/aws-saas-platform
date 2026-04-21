@@ -1,4 +1,5 @@
 locals {
+  name     = "wasp"
   region   = "us-east-1"
   domain   = "wasp.silvios.me"
   cert_arn = "arn:aws:acm:us-east-1:221047292361:certificate/76e86c75-717f-4269-a109-bcd426a4b565"
@@ -14,8 +15,18 @@ locals {
 
 module "vpc" {
   source  = "../../src/vpc"
-  name    = "wasp"
+  name    = local.name
   cidr    = "10.0.0.0/16"
   subnets = local.virtual_network_subnets
   tags    = local.tags
+}
+
+module "eks" {
+  source = "../../src/eks"
+
+  name               = local.name
+  vpc_id             = module.vpc.id
+  subnet_ids         = module.vpc.private_subnet_ids
+  private_subnet_ids = module.vpc.private_subnet_ids
+  tags               = local.tags
 }
