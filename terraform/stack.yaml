@@ -1,0 +1,4 @@
+name: aws-saas-platform
+terraform:
+  version: 1.14.9
+  backend: s3
