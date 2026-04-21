@@ -30,3 +30,24 @@ module "eks" {
   private_subnet_ids = module.vpc.private_subnet_ids
   tags               = local.tags
 }
+
+module "dynamodb" {
+  source = "../../src/dynamodb"
+
+  table_name = "tenant-registry"
+  hash_key   = "pk"
+
+  attributes = [
+    { name = "pk",                    type = "S" },
+    { name = "cognito_app_client_id", type = "S" },
+  ]
+
+  global_secondary_indexes = [
+    {
+      name     = "client-id-index"
+      hash_key = "cognito_app_client_id"
+    },
+  ]
+
+  tags = local.tags
+}

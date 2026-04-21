@@ -21,3 +21,11 @@ output "cluster_endpoint" {
 output "oidc_provider_arn" {
   value = module.eks.oidc_provider_arn
 }
+
+output "dynamodb_table_id" {
+  value = module.dynamodb.id
+}
+
+output "dynamodb_table_arn" {
+  value = module.dynamodb.arn
+}
