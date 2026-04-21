@@ -266,6 +266,7 @@ Os gotchas detalhados com soluções estão em `local/docs/lessons-learned.md`. 
 
 ### P1 — Quick wins
 
+- [ ] **Script de seleção de MCPs por sessão**: script interativo (ex: `scripts/select-mcps`) que lê os MCPs disponíveis em `~/.claude/settings.json`, apresenta menu de seleção (fzf ou select bash), e reescreve a lista `mcpServers` habilitada — reduzindo schemas carregados no contexto. Motivação: MCP schemas consomem a maior fatia do contexto mesmo quando os servers não são usados; sessões focadas em Terraform não precisam dos servers de EKS, IAM ou DynamoDB. Cada server desabilitado poupa centenas de tokens por turno.
 - [ ] **Script `add-tenant` para lab local** (k3d): análogo ao `configure-idps` AWS, mas para Keycloak — adiciona client + usuário + registro SQLite para um novo tenant sem recriar tudo. Hoje o `08-deploy-customer2` faz isso de forma hardcoded; tornar genérico quando necessário adicionar customer3+.
 - [ ] **Decode JWT na página de teste**: `test.html` exibir claims decodificados do JWT (header + payload) ao lado do token bruto.
 - [ ] **Screenshots para documentação**: tirar prints das telas principais (login, redirecionamento, página do tenant, isolamento 403) para enriquecer `docs/`.
