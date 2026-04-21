@@ -1,4 +1,83 @@
-# HANDOFF — Ambiente Local com k3d
+# HANDOFF — Ambiente Local com k3d + Terraform AWS
+
+## Terraform AWS — Iniciativa em andamento (2026-04-21)
+
+**Goal:** migrar provisionamento AWS (atualmente bash scripts) para Terraform.
+
+**Escopo:** VPC + EKS cluster + DynamoDB + Cognito + WAF (scripts 01, 02, 09–12).
+Kubectl/Helm (scripts 03–08, 13–15) permanecem fora do Terraform por ora.
+
+**Estratégia:** recriar do zero (cluster `wasp-cool-whale-7zr5` será destruído antes).
+Sem `terraform import` — fresh state.
+
+**Backend S3:**
+- Bucket: `silvios-wasp-foundation` (região `us-west-2`)
+- State key: `eks-lab/us-east-1/terraform.tfstate`
+
+**Referência de variáveis:** `scripts/env.conf` — região, CIDRs, instance types, tags.
+
+---
+
+### Estrutura de diretórios (espelhar `~/git/azure-kubernetes`)
+
+```
+terraform/
+├── src/                        # módulos reutilizáveis (equivalente a azure-kubernetes/src/)
+│   ├── vpc/
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   ├── eks/
+│   │   ├── main.tf             # usa terraform-aws-modules/eks internamente
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   ├── dynamodb/
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   ├── cognito/
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   └── waf/
+│       ├── main.tf
+│       ├── variables.tf
+│       └── outputs.tf
+├── examples/
+│   ├── common/                 # arquivos compartilhados via symlink (equivalente a azure-kubernetes/examples/common/)
+│   │   ├── create-symbolic-links  # script bash que cria os symlinks nos exemplos
+│   │   ├── provider.tf         # backend S3 + provider aws
+│   │   └── variables.tf        # variáveis comuns (region, tags, domain, cert_arn)
+│   └── eks_saas_lab/           # exemplo completo do lab
+│       ├── main.tf             # locals + módulos vpc/eks/dynamodb/cognito/waf
+│       └── outputs.tf
+│       # provider.tf e variables.tf são symlinks para common/
+└── stack.yaml                  # metadados (nome, versão tf, backend)
+```
+
+### Convenções (baseadas no azure-kubernetes)
+
+- **`locals {}`** no `main.tf` do exemplo para valores fixos; não usar `terraform.tfvars` para o lab
+- **Módulos referenciados** com `source = "../../src/<modulo>"`
+- **`output "instance"`** em cada módulo exporta o recurso inteiro; `output "id"` exporta só o ID
+- **`output "kubeconfig"`** (eks) com `sensitive = true`
+- **Versões de provider** com ranges: `>= 5.0.0, < 6.0.0`
+- **`depends_on`** explícito quando módulos dependem de outros (ex: eks depende de vpc)
+- **`count = local.install_X ? 1 : 0`** para recursos opcionais
+- Nunca colocar backend no módulo (`src/`) — só nos exemplos via `common/provider.tf`
+- Symlinks criados com script `common/create-symbolic-links`; rodar antes do primeiro `terraform init`
+
+### Próximos passos
+
+1. Criar `terraform/stack.yaml`
+2. Criar `terraform/examples/common/` (provider.tf + variables.tf + create-symbolic-links)
+3. Criar módulo `terraform/src/vpc/`
+4. Criar módulo `terraform/src/eks/`
+5. Criar módulos `terraform/src/dynamodb/`, `src/cognito/`, `src/waf/`
+6. Criar exemplo `terraform/examples/eks_saas_lab/`
+7. Rodar `create-symbolic-links` + `terraform init` + `terraform plan`
+
+---
 
 ## Goal
 
