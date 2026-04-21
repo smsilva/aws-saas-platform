@@ -171,12 +171,37 @@ Usa `terraform-aws-modules/eks ~> 21.18` internamente (complexidade de IAM/OIDC 
 
 **Próximo passo:** Etapa 7 — Módulo Cognito
 
-#### Etapa 7 — Módulo Cognito
-- `src/cognito/lambda/lambda_function.py` — pre-token generation (injeta custom:tenant_id via DynamoDB client-id-index)
-- `src/cognito/main.tf` — archive_file + IAM role/policy + Lambda + permission + User Pool (tenant_id schema) + Google IdP (count-gated) + App Client customer1
-- `src/cognito/variables.tf` — name, domain, dynamodb_table_name, dynamodb_table_arn, google_client_id (sensitive), google_client_secret (sensitive), tags
-- `src/cognito/outputs.tf` — user_pool_id, user_pool_arn, app_client_id, instance
-- Atualizar exemplo: adicionar module "cognito"
+#### Etapa 7 — Módulo Cognito ✅
+
+**Arquitetura:** Lambda compartilhada (`src/cognito/`) + User Pool por tenant (`src/cognito/userpool/`).
+
+**`src/cognito/`** — cria a Lambda compartilhada e expõe o ARN:
+- `lambda/lambda_function.py` — pre-token generation; consulta DynamoDB GSI `client-id-index` via `cognito_app_client_id` e injeta `custom:tenant_id`
+- `iam.tf` — IAM role + `AWSLambdaBasicExecutionRole` + policy inline `dynamodb:Query` no GSI
+- `lambda.tf` — `archive_file` (zip) + `aws_lambda_function`; env var `DYNAMODB_TABLE`
+- `variables.tf` — `name`, `dynamodb_table_name`, `dynamodb_table_arn`, `tags`
+- `outputs.tf` — `lambda_arn`
+
+**`src/cognito/userpool/`** — módulo standalone; uma instância por tenant:
+- `main.tf` — `locals` (idp_name derivado, callback/logout URLs com defaults), `aws_cognito_user_pool` (schema `custom:tenant_id`, trigger `pre_token_generation`), `aws_lambda_permission` com `statement_id` único por tenant
+- `idp.tf` — `aws_cognito_identity_provider` Google (`count = idp_type=="google"`) e Microsoft OIDC (`count = idp_type=="microsoft"`); nome derivado: `Google-${title(tenant)}` / `MicrosoftAD-${title(tenant)}`
+- `client.tf` — `aws_cognito_user_pool_client` com `for_each`-ready interface; `supported_identity_providers` dinâmico
+- `variables.tf` — `tenant`, `name`, `domain`, `lambda_arn`, `idp_type` (validado), `idp_client_id/secret` (sensitive), `idp_oidc_issuer` (default Microsoft personal), `callback_urls`, `logout_urls`, `tags`
+- `outputs.tf` — `user_pool_id`, `user_pool_arn`, `app_client_id`, `instance` (sensitive)
+
+**`examples/lab/main.tf`** — `module "cognito"` + `module "userpool_customer1"`; outputs `cognito_lambda_arn`, `customer1_user_pool_id`, `customer1_app_client_id`
+
+**`terraform validate` ✅ e `terraform plan` ✅ — 58 recursos planejados** (50 anteriores + 8 Cognito)
+
+**Decisões tomadas (Etapa 7):**
+- Lambda compartilhada (`src/cognito/`) separada dos User Pools (`src/cognito/userpool/`) — evita duplicar Lambda + IAM por tenant
+- `aws_lambda_permission.statement_id = "CognitoPreTokenGeneration-${var.tenant}"` — evita conflito quando múltiplos pools referenciam a mesma Lambda
+- `idp_type` com `validation` block — falha rápido em valores inválidos
+- `idp_name` local no `main.tf` do userpool — compartilhado entre `idp.tf` e `client.tf`
+- `callback_urls`/`logout_urls` com defaults derivados de `var.domain` e `var.tenant` — não exige sobrescrever para o caso padrão
+- Nomenclatura no exemplo: `userpool_customer1` (não `customer1_userpool`) — consistência com prefixo do tipo de recurso
+
+**Próximo passo:** Etapa 8 — Módulo WAF
 
 #### Etapa 8 — Módulo WAF
 - `src/waf/main.tf` — `aws_wafv2_web_acl` REGIONAL; 3 managed rules (CommonRuleSet p1, KnownBadInputs p2, IpReputation p3); associação ALB opcional (`count = var.alb_arn != "" ? 1 : 0`)
