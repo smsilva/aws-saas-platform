@@ -29,3 +29,15 @@ output "dynamodb_table_id" {
 output "dynamodb_table_arn" {
   value = module.dynamodb.arn
 }
+
+output "cognito_lambda_arn" {
+  value = module.cognito.lambda_arn
+}
+
+output "customer1_user_pool_id" {
+  value = module.userpool_customer1.user_pool_id
+}
+
+output "customer1_app_client_id" {
+  value = module.userpool_customer1.app_client_id
+}

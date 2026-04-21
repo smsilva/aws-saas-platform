@@ -31,6 +31,30 @@ module "eks" {
   tags               = local.tags
 }
 
+module "cognito" {
+  source = "../../src/cognito"
+
+  name                = local.name
+  dynamodb_table_name = module.dynamodb.id
+  dynamodb_table_arn  = module.dynamodb.arn
+  tags                = local.tags
+}
+
+module "userpool_customer1" {
+  source = "../../src/cognito/userpool"
+
+  tenant     = "customer1"
+  name       = local.name
+  domain     = local.domain
+  lambda_arn = module.cognito.lambda_arn
+
+  idp_type          = "google"
+  idp_client_id     = var.google_client_id
+  idp_client_secret = var.google_client_secret
+
+  tags = local.tags
+}
+
 module "dynamodb" {
   source = "../../src/dynamodb"
 
