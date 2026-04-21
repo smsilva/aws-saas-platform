@@ -135,14 +135,26 @@ Módulo escrito diretamente com recursos AWS — sem wrapper de módulo externo.
 - `terraform validate` ✅ e `terraform plan` ✅ — 16 recursos planejados
 - `apply` + `destroy` **pendentes** — deixados para quando EKS estiver pronto (Etapa 5)
 
-**Próximo passo:** criar `terraform/Makefile` com targets `init`, `plan`, `apply`, `destroy` apontando para `examples/lab` com `-chdir=examples/lab` e `-backend-config=backend.conf`.
+#### Makefile ✅
+- `terraform/Makefile` — targets `init`, `plan`, `apply`, `destroy` com `-chdir=examples/lab` e `-backend-config=backend.conf`
 
-#### Etapa 5 — Módulo EKS
+#### Etapa 5 — Módulo EKS ✅
 Usa `terraform-aws-modules/eks ~> 21.18` internamente (complexidade de IAM/OIDC justifica).
-- `src/eks/main.tf` — wraps `terraform-aws-modules/eks/aws ~> 21.18`; cluster_endpoint_public_access=true; node group nas subnets privadas (via `module.vpc.private_subnet_ids`)
-- `src/eks/variables.tf` — name, cluster_version, vpc_id, subnet_ids, private_subnet_ids, node_instance_type, node_min/max/desired, tags
-- `src/eks/outputs.tf` — id, instance, cluster_name, cluster_endpoint, oidc_provider_arn, kubeconfig (sensitive)
-- Atualizar exemplo: adicionar module "eks" com `depends_on = [module.vpc]`
+- `src/eks/main.tf` — wraps `terraform-aws-modules/eks/aws ~> 21.18`; `endpoint_public_access=true`; node group nas subnets privadas; local `kubeconfig` gerado com `aws eks get-token`
+- `src/eks/variables.tf` — name, cluster_version, vpc_id, subnet_ids, private_subnet_ids, node_instance_type, node_min_count/max_count/desired_count, tags
+- `src/eks/outputs.tf` — id, instance (sensitive), cluster_name, cluster_endpoint, oidc_provider_arn, kubeconfig (sensitive)
+- `examples/lab/main.tf` — local.name adicionado; module "vpc" usa local.name; module "eks" adicionado (sem depends_on — dependência já expressa pelos argumentos)
+- `examples/lab/outputs.tf` — cluster_name, cluster_endpoint, oidc_provider_arn adicionados
+- `terraform validate` ✅ e `terraform plan` ✅ — **49 recursos planejados** (16 VPC + 33 EKS)
+- `apply` + `destroy` pendentes — executar quando pronto para provisionar o cluster real
+
+**Decisões tomadas (Etapa 5):**
+- `terraform-aws-modules/eks` v21 usa `name` (não `cluster_name`), `kubernetes_version` (não `cluster_version`), `endpoint_public_access` (não `cluster_endpoint_public_access`)
+- `depends_on = [module.vpc]` removido do `module "eks"` — causava "count depends on unknown values" durante plan; dependência já implícita pelos argumentos `vpc_id` e `subnet_ids`
+- `data.aws_region.current.id` em vez de `.name` (deprecated no provider v6)
+- Variáveis de contagem de nodes usam `_count` (não `_size`) para consistência com o projeto
+
+**Próximo passo:** Etapa 6 — Módulo DynamoDB
 
 #### Etapa 6 — Módulo DynamoDB
 - `src/dynamodb/main.tf` — `aws_dynamodb_table` tenant-registry; pk HASH; GSI client-id-index; PROVISIONED 5/5
