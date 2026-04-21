@@ -203,12 +203,19 @@ Usa `terraform-aws-modules/eks ~> 21.18` internamente (complexidade de IAM/OIDC 
 
 **Próximo passo:** Etapa 8 — Módulo WAF
 
-#### Etapa 8 — Módulo WAF
+#### Etapa 8 — Módulo WAF ✅
 - `src/waf/main.tf` — `aws_wafv2_web_acl` REGIONAL; 3 managed rules (CommonRuleSet p1, KnownBadInputs p2, IpReputation p3); associação ALB opcional (`count = var.alb_arn != "" ? 1 : 0`)
 - `src/waf/variables.tf` — name, alb_arn (default ""), tags
 - `src/waf/outputs.tf` — id, instance, arn
-- Atualizar exemplo: adicionar module "waf"
-- `terraform validate` + `terraform plan` final completo
+- `examples/lab/main.tf` — `module "waf"` adicionado
+- `examples/lab/outputs.tf` — `waf_arn`, `waf_id` adicionados
+- `terraform validate` ✅ e `terraform plan` ✅ — **59 recursos planejados** (58 anteriores + 1 WAF; associação ALB com `count=0` pois `alb_arn=""`)
+
+**Decisões tomadas (Etapa 8):**
+- `aws_wafv2_web_acl_association` com `count = var.alb_arn != "" ? 1 : 0` — associação só ocorre quando o ARN do ALB for fornecido
+- No exemplo do lab, `alb_arn` omitido (default `""`) — será wired ao ALB quando o EKS controller provisionar o ingress
+
+**Próximo passo:** `terraform apply` + `destroy` do lab completo (todos os 59 recursos)
 
 ---
 

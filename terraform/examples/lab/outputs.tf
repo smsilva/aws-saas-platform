@@ -41,3 +41,11 @@ output "customer1_user_pool_id" {
 output "customer1_app_client_id" {
   value = module.userpool_customer1.app_client_id
 }
+
+output "waf_arn" {
+  value = module.waf.arn
+}
+
+output "waf_id" {
+  value = module.waf.id
+}

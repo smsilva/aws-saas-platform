@@ -55,6 +55,13 @@ module "userpool_customer1" {
   tags = local.tags
 }
 
+module "waf" {
+  source = "../../src/waf"
+
+  name = local.name
+  tags = local.tags
+}
+
 module "dynamodb" {
   source = "../../src/dynamodb"
 
