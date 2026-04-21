@@ -4,4 +4,20 @@
 # MkDocs build output
 site/
 
+# Secrets e configs com credenciais
 **/env.secrets
+**/*.env
+**/backend.*
+
+# Terraform
+*_override.tf
+*_override.tf.json
+override.tf
+override.tf.json
+*.tfstate
+*.tfstate.*
+**/.terraform/
+
+# Logs e artefatos temporários
+**/*.log
+**/docker_build_temp
