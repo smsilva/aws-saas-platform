@@ -21,6 +21,7 @@ override.tf.json
 
 # Claude Code — configurações locais pessoais
 .claude/settings.local.json
+.mcp.json
 
 # Logs e artefatos temporários
 **/*.log
