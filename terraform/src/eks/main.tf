@@ -10,6 +10,10 @@ module "eks" {
   subnet_ids         = var.subnet_ids
   endpoint_public_access = true
 
+  enable_cluster_creator_admin_permissions = var.enable_cluster_creator_admin_permissions
+
+  addons = var.addons
+
   eks_managed_node_groups = {
     default = {
       instance_types = [var.node_instance_type]
@@ -17,6 +21,14 @@ module "eks" {
       min_size       = var.node_min_count
       max_size       = var.node_max_count
       desired_size   = var.node_desired_count
+
+      metadata_options = {
+        http_endpoint               = "enabled"
+        http_tokens                 = "required"
+        http_put_response_hop_limit = 2
+      }
+
+      attach_cluster_primary_security_group = true
     }
   }
 

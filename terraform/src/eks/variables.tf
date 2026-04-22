@@ -48,6 +48,29 @@ variable "node_desired_count" {
   default     = 2
 }
 
+variable "enable_cluster_creator_admin_permissions" {
+  description = "Add the cluster creator IAM identity as an administrator via access entry"
+  type        = bool
+  default     = true
+}
+
+variable "addons" {
+  description = "EKS managed addons to install. Set to null to skip all addons."
+  type        = any
+  default = {
+    vpc-cni = {
+      most_recent    = true
+      before_compute = true
+    }
+    kube-proxy = {
+      most_recent = true
+    }
+    coredns = {
+      most_recent = true
+    }
+  }
+}
+
 variable "tags" {
   description = "Tags to apply to all resources"
   type        = map(string)
