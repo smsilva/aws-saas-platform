@@ -30,3 +30,11 @@ resource "aws_dynamodb_table" "default" {
 
   tags = var.tags
 }
+
+resource "aws_dynamodb_table_item" "seed" {
+  for_each = { for item in var.seed_items : item.hash_key_value => item }
+
+  table_name = aws_dynamodb_table.default.name
+  hash_key   = var.hash_key
+  item       = each.value.item
+}

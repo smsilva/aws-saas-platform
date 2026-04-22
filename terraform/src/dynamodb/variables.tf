@@ -45,3 +45,12 @@ variable "tags" {
   default     = {}
   description = "Tags to apply to the table"
 }
+
+variable "seed_items" {
+  type = list(object({
+    hash_key_value = string
+    item           = string
+  }))
+  default     = []
+  description = "Initial items to seed into the table (DynamoDB JSON format)"
+}
