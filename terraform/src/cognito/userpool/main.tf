@@ -3,7 +3,7 @@ locals {
   logout_urls   = length(var.logout_urls) > 0 ? var.logout_urls : ["https://${var.tenant}.${var.domain}/logout"]
 
   idp_name = (
-    var.idp_type == "google"    ? "Google-${title(var.tenant)}" :
+    var.idp_type == "google"    ? "Google" :
     var.idp_type == "microsoft" ? "MicrosoftAD-${title(var.tenant)}" :
     ""
   )
