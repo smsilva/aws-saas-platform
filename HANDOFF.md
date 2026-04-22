@@ -199,7 +199,7 @@ Usa `terraform-aws-modules/eks ~> 21.18` internamente (complexidade de IAM/OIDC 
 - `idp_type` com `validation` block — falha rápido em valores inválidos
 - `idp_name` local no `main.tf` do userpool — compartilhado entre `idp.tf` e `client.tf`
 - `callback_urls`/`logout_urls` com defaults derivados de `var.domain` e `var.tenant` — não exige sobrescrever para o caso padrão
-- Nomenclatura no exemplo: `userpool_customer1` (não `customer1_userpool`) — consistência com prefixo do tipo de recurso
+- Nomenclatura no exemplo: `cognito_userpool_customer1` (renomeado de `userpool_customer1` em 2026-04-22) — prefixo `cognito_` adicionado para deixar clara a origem do recurso no `outputs.tf`
 
 **Próximo passo:** Etapa 8 — Módulo WAF
 
@@ -216,6 +216,107 @@ Usa `terraform-aws-modules/eks ~> 21.18` internamente (complexidade de IAM/OIDC 
 - No exemplo do lab, `alb_arn` omitido (default `""`) — será wired ao ALB quando o EKS controller provisionar o ingress
 
 **Próximo passo:** `terraform apply` + `destroy` do lab completo (todos os 59 recursos)
+
+#### Correções aplicadas (2026-04-22)
+
+**1. Renomeação do módulo `userpool_customer1` → `cognito_userpool_customer1`**
+- Arquivos: `terraform/examples/lab/main.tf` e `terraform/examples/lab/outputs.tf`
+- Motivo: prefixo `cognito_` torna clara a origem do recurso nos outputs e evita ambiguidade quando outros módulos de tenant forem adicionados.
+
+**2. Fix Cognito IdP — `provider_name` deve ser exatamente `"Google"`**
+- Arquivo: `terraform/src/cognito/userpool/main.tf`
+- O `idp_name` local estava gerando `"Google-Customer1"` para o `provider_name` do `aws_cognito_identity_provider`. O Cognito exige que o `provider_name` para Google seja exatamente `"Google"` (case-sensitive, sem sufixo). Corrigido para usar `"Google"` fixo quando `idp_type == "google"`, mantendo o `idp_name` derivado apenas para referências internas.
+
+**3. Fix EKS — três problemas causando `NodeCreationFailure`** (todos resolvidos)
+- Arquivo principal: `terraform/src/eks/main.tf` e `terraform/src/eks/variables.tf`
+- Diagnóstico confirmado em 2026-04-22 após múltiplos nodegroups `CREATE_FAILED`.
+
+  **Problema A — `http_put_response_hop_limit = 1`:**
+  Com `HttpTokens = required` (IMDSv2) e `hop_limit = 1`, o `nodeadm` (bootstrap AL2023) não conseguia atingir o IMDS endpoint para ler a configuração do cluster. Fix: `http_put_response_hop_limit = 2` no `metadata_options` do launch template.
+
+  **Problema B — `attach_cluster_primary_security_group = false` (default):**
+  O primary security group do EKS (`sg-0cc0849a7409e106f`) só aceita tráfego de si mesmo. Os nodes estavam apenas no node SG (`sg-079625881dee8bab7`) e não conseguiam atingir o private endpoint do EKS na porta 443. Fix: `attach_cluster_primary_security_group = true` no node group — adiciona o primary SG aos nodes, permitindo comunicação bidirecional com o control plane.
+
+  **Problema C — `bootstrap_self_managed_addons = false` (hardcoded no módulo) + sem addons:**
+  O módulo `terraform-aws-modules/eks ~> 21.18` seta `bootstrap_self_managed_addons = false` no recurso `aws_eks_cluster`. Isso faz com que a AWS **não instale** vpc-cni, kube-proxy ou coredns automaticamente. Verificado com `aws eks list-addons --cluster-name wasp` retornando `[]`. Sem vpc-cni DaemonSet, o nó boota e o kubelet sobe (confirmado pelo console EC2 — nodeadm completa em ~1s), mas fica em estado `NetworkUnavailable` e nunca chega a `Ready`. O EKS declara NodeCreationFailure após o timeout. Fix: variável `addons` adicionada ao módulo `src/eks`, com defaults para vpc-cni (`before_compute = true`), kube-proxy e coredns.
+
+- **Nota:** o diagnóstico anterior de "subnet sem rota NAT" estava **incorreto** — `subnet-0022014573966b442` está corretamente associada à route table `wasp-private` com rota `0.0.0.0/0 → nat-0c3b7e00f02634a2a`.
+
+- **Nodegroups órfãos:** foram limpos (verificado — `aws eks list-nodegroups --cluster-name wasp` retorna `[]`).
+
+**4. Fix EKS — `enable_cluster_creator_admin_permissions = false` (default)**
+- Arquivo: `terraform/src/eks/variables.tf` e `terraform/src/eks/main.tf`
+- O módulo não adicionava o caller IAM como admin do cluster. Após `terraform apply`, `kubectl` não funcionaria sem configurar access entries manualmente (equivalente ao que o script `03-configure-access` faz explicitamente). Fix: variável exposta com `default = true`.
+
+**5. Gaps fechados: bash scripts vs Terraform (análise comparativa)**
+- Arquivos alterados: `terraform/src/vpc/main.tf`, `terraform/src/dynamodb/main.tf`, `terraform/src/dynamodb/variables.tf`, `terraform/src/cognito/userpool/outputs.tf`, `terraform/examples/lab/main.tf`, `terraform/examples/lab/outputs.tf`
+
+  | Gap | Fix |
+  |---|---|
+  | `map_public_ip_on_launch` ausente nas subnets públicas | Adicionado em `src/vpc/main.tf` |
+  | DynamoDB sem seed data inicial | `seed_items` variable + `aws_dynamodb_table_item.seed` resource |
+  | Cognito sem output do `app_client_secret` | Output adicionado em `src/cognito/userpool/outputs.tf` |
+  | k8s version: default 1.32 vs 1.34 nos scripts | `cluster_version = "1.34"` explícito em `examples/lab/main.tf` |
+  | Node sizing: default min=1/max=3 vs scripts min=2/max=5 | `node_min_count = 1`, `node_max_count = 5` em `examples/lab/main.tf` |
+
+---
+
+#### Estado atual (2026-04-22 fim de sessão)
+
+**Todos os recursos AWS foram destruídos.** Estado limpo para recomeço.
+
+---
+
+#### Plano para próxima sessão — comparação script vs Terraform via metadados reais
+
+**Objetivo:** eliminar suposições — capturar o que os scripts bash criam de facto na AWS, salvar os metadados, criar via Terraform, comparar diferenças ponto a ponto.
+
+**Motivação:** após 3 falhas de NodeCreationFailure descobrimos que havia 3 causas simultâneas (hop_limit, primary SG, vpc-cni addons). Uma abordagem baseada em metadados reais teria revelado tudo de uma vez, sem iteração às cegas.
+
+**Estratégia:**
+
+```
+1. Provisionar com bash scripts (02-create-cluster + 03-configure-access)
+2. Capturar metadados reais → docs/metadata-scripts/
+3. Destruir o cluster bash
+4. Provisionar com terraform apply
+5. Capturar metadados reais → docs/metadata-terraform/
+6. Diff entre os dois → docs/metadata-diff.md
+7. Fechar gaps no código Terraform
+```
+
+**Recursos a capturar (por recurso AWS):**
+
+| Recurso | Comando de captura |
+|---|---|
+| Cluster EKS | `aws eks describe-cluster --name <name>` |
+| Node group | `aws eks describe-nodegroup --cluster-name <name> --nodegroup-name <ng>` |
+| Launch template (versão usada) | `aws ec2 describe-launch-template-versions --launch-template-id <id> --versions <v>` |
+| Addons instalados | `aws eks list-addons --cluster-name <name>` + `describe-addon` por addon |
+| Access entries | `aws eks list-access-entries --cluster-name <name>` + `describe-access-entry` por entry |
+| IAM role do cluster | `aws iam get-role --role-name <name>` + `list-attached-role-policies` |
+| IAM role do node group | `aws iam get-role --role-name <name>` + `list-attached-role-policies` |
+| Security groups (cluster + node) | `aws ec2 describe-security-groups --group-ids <id>` (regras inbound/outbound) |
+| OIDC Provider | `aws iam get-open-id-connect-provider --open-id-connect-provider-arn <arn>` |
+
+**Campos críticos a comparar (lições aprendidas):**
+- `bootstrapSelfManagedAddons` no cluster
+- `accessConfig.authenticationMode`
+- `accessConfig.bootstrapClusterCreatorAdminPermissions`
+- `launchTemplate.version` + conteúdo (`MetadataOptions`, `SecurityGroupIds`)
+- lista de addons e suas versões
+- lista de access entries e políticas associadas
+- políticas IAM anexadas ao node role
+
+**Próximos passos concretos:**
+1. Commit de todos os arquivos modificados (`git diff --stat HEAD` mostra 11 arquivos)
+2. Criar script `scripts/capture-metadata` que executa todos os comandos acima e salva em `docs/metadata-<source>/` (um arquivo JSON por recurso)
+3. Provisionar com bash (`scripts/02-create-cluster` + `scripts/03-configure-access`)
+4. Rodar `scripts/capture-metadata bash` → `docs/metadata-scripts/`
+5. Destruir cluster bash
+6. Provisionar com Terraform (`terraform apply`)
+7. Rodar `scripts/capture-metadata terraform` → `docs/metadata-terraform/`
+8. Comparar e documentar em `docs/metadata-diff.md`
 
 ---
 
