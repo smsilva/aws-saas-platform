@@ -28,6 +28,19 @@ module "eks" {
         http_put_response_hop_limit = 2
       }
 
+      block_device_mappings = {
+        xvda = {
+          device_name = "/dev/xvda"
+          ebs = {
+            volume_size           = 80
+            volume_type           = "gp3"
+            iops                  = 3000
+            throughput            = 125
+            delete_on_termination = true
+          }
+        }
+      }
+
       attach_cluster_primary_security_group = true
     }
   }
