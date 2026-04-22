@@ -1,0 +1,179 @@
+#!/bin/bash
+# Captura metadados reais de um cluster EKS para comparação bash vs Terraform
+
+set -euo pipefail
+
+. "$(dirname "$0")/env.conf"
+
+source="${1?Usage: capture-metadata <bash|terraform>}"
+
+script_dir="$(cd "$(dirname "$0")" && pwd)"
+output_dir="${script_dir}/../docs/metadata-${source}"
+
+mkdir --parents "${output_dir}"
+
+echo "==> source: ${source}"
+echo "==> cluster: ${cluster_name} (${aws_region})"
+echo "==> output: ${output_dir}"
+echo ""
+
+# ---------------------------------------------------------------------------
+# 1. Cluster
+# ---------------------------------------------------------------------------
+echo "--> cluster"
+aws eks describe-cluster \
+  --name "${cluster_name}" \
+  --region "${aws_region}" \
+  > "${output_dir}/cluster.json"
+
+# ---------------------------------------------------------------------------
+# 2. Node groups
+# ---------------------------------------------------------------------------
+echo "--> nodegroups (list)"
+aws eks list-nodegroups \
+  --cluster-name "${cluster_name}" \
+  --region "${aws_region}" \
+  > "${output_dir}/nodegroups.json"
+
+mapfile -t nodegroup_names < <(jq -r '.nodegroups[]' "${output_dir}/nodegroups.json")
+
+for ng_name in "${nodegroup_names[@]}"; do
+  echo "--> nodegroup: ${ng_name}"
+  aws eks describe-nodegroup \
+    --cluster-name "${cluster_name}" \
+    --nodegroup-name "${ng_name}" \
+    --region "${aws_region}" \
+    > "${output_dir}/nodegroup-${ng_name}.json"
+
+  lt_id="$(jq -r '.nodegroup.launchTemplate.id // empty' "${output_dir}/nodegroup-${ng_name}.json")"
+  lt_version="$(jq -r '.nodegroup.launchTemplate.version // empty' "${output_dir}/nodegroup-${ng_name}.json")"
+
+  if [[ -n "${lt_id}" && -n "${lt_version}" ]]; then
+    echo "--> launch-template: ${ng_name} (${lt_id} v${lt_version})"
+    aws ec2 describe-launch-template-versions \
+      --launch-template-id "${lt_id}" \
+      --versions "${lt_version}" \
+      --region "${aws_region}" \
+      > "${output_dir}/launch-template-${ng_name}.json"
+  fi
+done
+
+# ---------------------------------------------------------------------------
+# 3. Addons
+# ---------------------------------------------------------------------------
+echo "--> addons (list)"
+aws eks list-addons \
+  --cluster-name "${cluster_name}" \
+  --region "${aws_region}" \
+  > "${output_dir}/addons.json"
+
+mapfile -t addon_names < <(jq -r '.addons[]' "${output_dir}/addons.json")
+
+for addon_name in "${addon_names[@]}"; do
+  echo "--> addon: ${addon_name}"
+  aws eks describe-addon \
+    --cluster-name "${cluster_name}" \
+    --addon-name "${addon_name}" \
+    --region "${aws_region}" \
+    > "${output_dir}/addon-${addon_name}.json"
+done
+
+# ---------------------------------------------------------------------------
+# 4. Access entries
+# ---------------------------------------------------------------------------
+echo "--> access-entries (list)"
+aws eks list-access-entries \
+  --cluster-name "${cluster_name}" \
+  --region "${aws_region}" \
+  > "${output_dir}/access-entries.json"
+
+mapfile -t access_entry_arns < <(jq -r '.accessEntries[]' "${output_dir}/access-entries.json")
+
+for arn in "${access_entry_arns[@]}"; do
+  short_name="$(echo "${arn##*/}" | tr '[:upper:]' '[:lower:]')"
+  echo "--> access-entry: ${short_name}"
+  aws eks describe-access-entry \
+    --cluster-name "${cluster_name}" \
+    --principal-arn "${arn}" \
+    --region "${aws_region}" \
+    > "${output_dir}/access-entry-${short_name}.json"
+done
+
+# ---------------------------------------------------------------------------
+# 5. IAM — cluster role
+# ---------------------------------------------------------------------------
+cluster_role_arn="$(jq -r '.cluster.roleArn' "${output_dir}/cluster.json")"
+cluster_role_name="${cluster_role_arn##*/}"
+
+echo "--> iam cluster role: ${cluster_role_name}"
+aws iam get-role \
+  --role-name "${cluster_role_name}" \
+  > "${output_dir}/iam-cluster-role.json"
+aws iam list-attached-role-policies \
+  --role-name "${cluster_role_name}" \
+  > "${output_dir}/iam-cluster-role-policies.json"
+
+# ---------------------------------------------------------------------------
+# 6. IAM — node role (from first nodegroup)
+# ---------------------------------------------------------------------------
+if [[ "${#nodegroup_names[@]}" -gt 0 ]]; then
+  node_role_arn="$(jq -r '.nodegroup.nodeRole' "${output_dir}/nodegroup-${nodegroup_names[0]}.json")"
+  node_role_name="${node_role_arn##*/}"
+
+  echo "--> iam node role: ${node_role_name}"
+  aws iam get-role \
+    --role-name "${node_role_name}" \
+    > "${output_dir}/iam-node-role.json"
+  aws iam list-attached-role-policies \
+    --role-name "${node_role_name}" \
+    > "${output_dir}/iam-node-role-policies.json"
+fi
+
+# ---------------------------------------------------------------------------
+# 7. Security groups — cluster SG + securityGroupIds + launch template SGs
+# ---------------------------------------------------------------------------
+mapfile -t sg_ids < <(
+  jq -r '.cluster.resourcesVpcConfig.clusterSecurityGroupId,
+         (.cluster.resourcesVpcConfig.securityGroupIds[]? // empty)' \
+    "${output_dir}/cluster.json"
+)
+
+for lt_file in "${output_dir}"/launch-template-*.json; do
+  [[ -f "${lt_file}" ]] || continue
+  mapfile -t lt_sgs < <(
+    jq -r '.LaunchTemplateVersions[].LaunchTemplateData.SecurityGroupIds[]? // empty' \
+      "${lt_file}" 2>/dev/null || true
+  )
+  sg_ids+=("${lt_sgs[@]+"${lt_sgs[@]}"}")
+done
+
+# Deduplicate preserving order
+mapfile -t sg_ids < <(printf '%s\n' "${sg_ids[@]}" | sort -u)
+
+for sg_id in "${sg_ids[@]}"; do
+  echo "--> security-group: ${sg_id}"
+  aws ec2 describe-security-groups \
+    --group-ids "${sg_id}" \
+    --region "${aws_region}" \
+    > "${output_dir}/sg-${sg_id}.json"
+done
+
+# ---------------------------------------------------------------------------
+# 8. OIDC provider
+# ---------------------------------------------------------------------------
+oidc_issuer="$(jq -r '.cluster.identity.oidc.issuer' "${output_dir}/cluster.json")"
+oidc_host="${oidc_issuer#https://}"
+account_id="$(aws sts get-caller-identity --query Account --output text)"
+oidc_arn="arn:aws:iam::${account_id}:oidc-provider/${oidc_host}"
+
+echo "--> oidc-provider"
+aws iam get-open-id-connect-provider \
+  --open-id-connect-provider-arn "${oidc_arn}" \
+  > "${output_dir}/oidc-provider.json"
+
+# ---------------------------------------------------------------------------
+# Summary
+# ---------------------------------------------------------------------------
+file_count="$(ls "${output_dir}" | wc --lines)"
+echo ""
+echo "==> Done. ${file_count} files in ${output_dir}"
