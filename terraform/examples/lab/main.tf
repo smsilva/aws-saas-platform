@@ -25,41 +25,13 @@ module "eks" {
   source = "../../src/eks"
 
   name               = local.name
+  cluster_version    = "1.34"
   vpc_id             = module.vpc.id
   subnet_ids         = module.vpc.private_subnet_ids
   private_subnet_ids = module.vpc.private_subnet_ids
+  node_min_count     = 1
+  node_max_count     = 5
   tags               = local.tags
-}
-
-module "cognito" {
-  source = "../../src/cognito"
-
-  name                = local.name
-  dynamodb_table_name = module.dynamodb.id
-  dynamodb_table_arn  = module.dynamodb.arn
-  tags                = local.tags
-}
-
-module "userpool_customer1" {
-  source = "../../src/cognito/userpool"
-
-  tenant     = "customer1"
-  name       = local.name
-  domain     = local.domain
-  lambda_arn = module.cognito.lambda_arn
-
-  idp_type          = "google"
-  idp_client_id     = var.google_client_id
-  idp_client_secret = var.google_client_secret
-
-  tags = local.tags
-}
-
-module "waf" {
-  source = "../../src/waf"
-
-  name = local.name
-  tags = local.tags
 }
 
 module "dynamodb" {
@@ -80,5 +52,55 @@ module "dynamodb" {
     },
   ]
 
+  seed_items = [
+    {
+      hash_key_value = "domain#gmail.com"
+      item = jsonencode({
+        pk                    = { S = "domain#gmail.com" }
+        tenant_id             = { S = "customer1" }
+        domain                = { S = "gmail.com" }
+        cognito_app_client_id = { S = module.cognito_userpool_customer1.app_client_id }
+        auth = {
+          M = {
+            cognito_user_pool_id  = { S = module.cognito_userpool_customer1.user_pool_id }
+            cognito_app_client_id = { S = module.cognito_userpool_customer1.app_client_id }
+          }
+        }
+        status = { S = "active" }
+      })
+    },
+  ]
+
+  tags = local.tags
+}
+
+module "cognito" {
+  source = "../../src/cognito"
+
+  name                = local.name
+  dynamodb_table_name = module.dynamodb.id
+  dynamodb_table_arn  = module.dynamodb.arn
+  tags                = local.tags
+}
+
+module "cognito_userpool_customer1" {
+  source = "../../src/cognito/userpool"
+
+  tenant     = "customer1"
+  name       = local.name
+  domain     = local.domain
+  lambda_arn = module.cognito.lambda_arn
+
+  idp_type          = "google"
+  idp_client_id     = var.google_client_id
+  idp_client_secret = var.google_client_secret
+
+  tags = local.tags
+}
+
+module "waf" {
+  source = "../../src/waf"
+
+  name = local.name
   tags = local.tags
 }

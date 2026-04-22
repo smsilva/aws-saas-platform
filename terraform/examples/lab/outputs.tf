@@ -35,11 +35,11 @@ output "cognito_lambda_arn" {
 }
 
 output "customer1_user_pool_id" {
-  value = module.userpool_customer1.user_pool_id
+  value = module.cognito_userpool_customer1.user_pool_id
 }
 
 output "customer1_app_client_id" {
-  value = module.userpool_customer1.app_client_id
+  value = module.cognito_userpool_customer1.app_client_id
 }
 
 output "waf_arn" {
@@ -48,4 +48,9 @@ output "waf_arn" {
 
 output "waf_id" {
   value = module.waf.id
+}
+
+output "customer1_app_client_secret" {
+  value     = module.cognito_userpool_customer1.app_client_secret
+  sensitive = true
 }

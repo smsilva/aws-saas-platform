@@ -20,12 +20,10 @@ variable "tags" {
 
 variable "google_client_id" {
   type      = string
-  sensitive = true
-  default   = ""
+  sensitive = false
 }
 
 variable "google_client_secret" {
   type      = string
   sensitive = true
-  default   = ""
 }
