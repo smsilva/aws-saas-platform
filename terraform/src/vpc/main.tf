@@ -16,9 +16,10 @@ resource "aws_vpc" "default" {
 resource "aws_subnet" "default" {
   for_each = local.subnet_map
 
-  vpc_id            = aws_vpc.default.id
-  cidr_block        = each.value.cidr
-  availability_zone = each.value.availability_zone
+  vpc_id                  = aws_vpc.default.id
+  cidr_block              = each.value.cidr
+  availability_zone       = each.value.availability_zone
+  map_public_ip_on_launch = each.value.public
 
   tags = merge(
     var.tags,
