@@ -1,0 +1,7 @@
+{
+    "addons": [
+        "coredns",
+        "kube-proxy",
+        "vpc-cni"
+    ]
+}

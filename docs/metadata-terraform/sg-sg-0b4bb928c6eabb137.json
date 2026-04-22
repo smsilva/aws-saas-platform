@@ -1,0 +1,44 @@
+{
+    "SecurityGroups": [
+        {
+            "GroupId": "sg-0b4bb928c6eabb137",
+            "IpPermissionsEgress": [],
+            "Tags": [
+                {
+                    "Key": "Name",
+                    "Value": "wasp-cluster"
+                },
+                {
+                    "Key": "env",
+                    "Value": "lab"
+                },
+                {
+                    "Key": "project",
+                    "Value": "eks-lab"
+                }
+            ],
+            "VpcId": "vpc-0a83df44621fce3a6",
+            "SecurityGroupArn": "arn:aws:ec2:us-east-1:221047292361:security-group/sg-0b4bb928c6eabb137",
+            "OwnerId": "221047292361",
+            "GroupName": "wasp-cluster-20260422232340893000000004",
+            "Description": "EKS cluster security group",
+            "IpPermissions": [
+                {
+                    "IpProtocol": "tcp",
+                    "FromPort": 443,
+                    "ToPort": 443,
+                    "UserIdGroupPairs": [
+                        {
+                            "Description": "Node groups to cluster API",
+                            "UserId": "221047292361",
+                            "GroupId": "sg-0e9304f4191605032"
+                        }
+                    ],
+                    "IpRanges": [],
+                    "Ipv6Ranges": [],
+                    "PrefixListIds": []
+                }
+            ]
+        }
+    ]
+}

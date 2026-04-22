@@ -1,0 +1,12 @@
+{
+    "AttachedPolicies": [
+        {
+            "PolicyName": "AmazonEKSClusterPolicy",
+            "PolicyArn": "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+        },
+        {
+            "PolicyName": "AmazonEKSVPCResourceController",
+            "PolicyArn": "arn:aws:iam::aws:policy/AmazonEKSVPCResourceController"
+        }
+    ]
+}

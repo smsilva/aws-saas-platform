@@ -1,0 +1,13 @@
+{
+    "accessEntry": {
+        "clusterName": "wasp-cool-whale-7zr5",
+        "principalArn": "arn:aws:iam::221047292361:user/silvios",
+        "kubernetesGroups": [],
+        "accessEntryArn": "arn:aws:eks:us-east-1:221047292361:access-entry/wasp-cool-whale-7zr5/user/221047292361/silvios/a6cedbb1-db9a-e099-8892-884652d772ad",
+        "createdAt": "2026-04-22T19:50:58.782000-03:00",
+        "modifiedAt": "2026-04-22T19:50:58.782000-03:00",
+        "tags": {},
+        "username": "arn:aws:iam::221047292361:user/silvios",
+        "type": "STANDARD"
+    }
+}

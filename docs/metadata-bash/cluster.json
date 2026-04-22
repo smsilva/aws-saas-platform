@@ -1,0 +1,81 @@
+{
+    "cluster": {
+        "name": "wasp-cool-whale-7zr5",
+        "arn": "arn:aws:eks:us-east-1:221047292361:cluster/wasp-cool-whale-7zr5",
+        "createdAt": "2026-04-22T19:50:58.982000-03:00",
+        "version": "1.34",
+        "endpoint": "https://32FA0E8E4C36E09EE46A652DD32AC46B.gr7.us-east-1.eks.amazonaws.com",
+        "roleArn": "arn:aws:iam::221047292361:role/eksctl-wasp-cool-whale-7zr5-cluster-ServiceRole-nZvK1rKt36Iq",
+        "resourcesVpcConfig": {
+            "subnetIds": [
+                "subnet-01ec3d514905115b6",
+                "subnet-06d73e8d8071496de",
+                "subnet-0e4bd4d2526f45a75",
+                "subnet-083e7a630a8a8ad5e"
+            ],
+            "securityGroupIds": [
+                "sg-0562ab53a4eecec58"
+            ],
+            "clusterSecurityGroupId": "sg-001028cc8b7173d05",
+            "vpcId": "vpc-0ba607fcf256a92b8",
+            "endpointPublicAccess": true,
+            "endpointPrivateAccess": false,
+            "publicAccessCidrs": [
+                "0.0.0.0/0"
+            ]
+        },
+        "kubernetesNetworkConfig": {
+            "serviceIpv4Cidr": "172.20.0.0/16",
+            "ipFamily": "ipv4",
+            "elasticLoadBalancing": {
+                "enabled": false
+            }
+        },
+        "logging": {
+            "clusterLogging": [
+                {
+                    "types": [
+                        "api",
+                        "audit",
+                        "authenticator",
+                        "controllerManager",
+                        "scheduler"
+                    ],
+                    "enabled": false
+                }
+            ]
+        },
+        "identity": {
+            "oidc": {
+                "issuer": "https://oidc.eks.us-east-1.amazonaws.com/id/32FA0E8E4C36E09EE46A652DD32AC46B"
+            }
+        },
+        "status": "ACTIVE",
+        "certificateAuthority": {
+            "data": "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURCVENDQWUyZ0F3SUJBZ0lJTnBIZzBibnhSYVl3RFFZSktvWklodmNOQVFFTEJRQXdGVEVUTUJFR0ExVUUKQXhNS2EzVmlaWEp1WlhSbGN6QWVGdzB5TmpBME1qSXlNalV4TWpGYUZ3MHpOakEwTVRreU1qVTJNakZhTUJVeApFekFSQmdOVkJBTVRDbXQxWW1WeWJtVjBaWE13Z2dFaU1BMEdDU3FHU0liM0RRRUJBUVVBQTRJQkR3QXdnZ0VLCkFvSUJBUUM1QWNEaXIzTWZMcDhsUCs2SVdKWFdXc2RvMDFEeWM1eHIwdUdpR21UTmRXK2hyMWY1UU5hcjAweUQKdEFmd3V2bUJEOC9ubGMwb2o5M1pxazZ6Z2krd0xtbE1FendMTXVKV1NmOXFVQm9qZ2VHUW5Td1gxQ3ZGbTRNbwpBSS8rMVRMdlZxaHpyeU5pTllyU2V4YmNLMnhBMUgxQkdFN0kxRlV4bFJIQXhIc1laakZ2SUhTcVJnYUhDdzBkCnVmU3hmQ0FDRjhtMUJNQlZCYUt6TEpvRngzWUdqWHQ3czd6RWE0VU5KeWhCeE9ZaWtFOW8zNDcrbUxJYUdHTG8KN2c0c1RuMFM4U2kwcVBldm1KY05IM29WaTIwNmRMeGVPTGcwTEIvdEpFREczdjZ1VjBRcGNJT3k3K0ZHZmxZUgpaWjdCcWtxbzZJdEg4UzNyYXBxbjhJZTdrS3RMQWdNQkFBR2pXVEJYTUE0R0ExVWREd0VCL3dRRUF3SUNwREFQCkJnTlZIUk1CQWY4RUJUQURBUUgvTUIwR0ExVWREZ1FXQkJTcHZJT1BOd3dlVWZheTBJNEdYYlpiT01TSlZEQVYKQmdOVkhSRUVEakFNZ2dwcmRXSmxjbTVsZEdWek1BMEdDU3FHU0liM0RRRUJDd1VBQTRJQkFRQlBpaUZ1aUZiUwpXOTVxL2xWSWk4QWpWZStaVFl3QkRGTEltVnFLK1RoSnorSVc5T1FDcDI1S0IvUC9FTzI0TDdUSjE1c29nUC84CmkyVU44LzltNy80TDg1SElMMEJod096MnF0dUI3dnRlditYS2s2ejBrKzBnclZXN1NkOHUzM1paUmVFSHd4SUoKWnk0SXdCRmdjZHlobFlBbGROdUt3TE05di9LcFJMak5YTFYrT3FJdFFQMHlKQW1vazV2SEFObTg4dlZyTGF0UQoza21LQlZ1NCtKaVI2RnJJSDViSVc5KzJyUEYvbmcyR1FaZkFrWHNWN1p2WTlDbU9yN3RGNm8xZjRIQlowWnpCCnM5VzVNT3A3czlHMGY4ZVBodHRVcVhmMnZZRVBFMlRlSURQaG1GenAyVENRWG1lbnJ3QVo3amQwQjdoWmVOSWYKZmU4bUJ6Lzk4STlTCi0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K"
+        },
+        "platformVersion": "eks.20",
+        "tags": {
+            "aws:cloudformation:stack-name": "eksctl-wasp-cool-whale-7zr5-cluster",
+            "alpha.eksctl.io/cluster-name": "wasp-cool-whale-7zr5",
+            "aws:cloudformation:stack-id": "arn:aws:cloudformation:us-east-1:221047292361:stack/eksctl-wasp-cool-whale-7zr5-cluster/acb35ee0-3e9d-11f1-8215-12e965ffed65",
+            "eksctl.cluster.k8s.io/v1alpha1/cluster-name": "wasp-cool-whale-7zr5",
+            "alpha.eksctl.io/cluster-oidc-enabled": "true",
+            "aws:cloudformation:logical-id": "ControlPlane",
+            "project": "eks-lab",
+            "env": "lab",
+            "alpha.eksctl.io/eksctl-version": "0.225.0",
+            "Name": "eksctl-wasp-cool-whale-7zr5-cluster/ControlPlane"
+        },
+        "accessConfig": {
+            "authenticationMode": "API_AND_CONFIG_MAP"
+        },
+        "upgradePolicy": {
+            "supportType": "EXTENDED"
+        },
+        "deletionProtection": false,
+        "controlPlaneScalingConfig": {
+            "tier": "standard"
+        }
+    }
+}

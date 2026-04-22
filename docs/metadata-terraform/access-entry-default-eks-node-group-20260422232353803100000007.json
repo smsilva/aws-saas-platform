@@ -1,0 +1,15 @@
+{
+    "accessEntry": {
+        "clusterName": "wasp",
+        "principalArn": "arn:aws:iam::221047292361:role/default-eks-node-group-20260422232353803100000007",
+        "kubernetesGroups": [
+            "system:nodes"
+        ],
+        "accessEntryArn": "arn:aws:eks:us-east-1:221047292361:access-entry/wasp/role/221047292361/default-eks-node-group-20260422232353803100000007/42cedbc6-3466-6745-7c90-32042943ba9a",
+        "createdAt": "2026-04-22T20:35:25.704000-03:00",
+        "modifiedAt": "2026-04-22T20:35:25.704000-03:00",
+        "tags": {},
+        "username": "system:node:{{EC2PrivateDNSName}}",
+        "type": "EC2_LINUX"
+    }
+}

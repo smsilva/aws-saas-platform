@@ -1,0 +1,51 @@
+{
+    "nodegroup": {
+        "nodegroupName": "default-2026042223344686210000000c",
+        "nodegroupArn": "arn:aws:eks:us-east-1:221047292361:nodegroup/wasp/default-2026042223344686210000000c/22cedbc5-e8d4-d641-8c40-8aecf672892d",
+        "clusterName": "wasp",
+        "version": "1.34",
+        "releaseVersion": "1.34.6-20260415",
+        "createdAt": "2026-04-22T20:34:48.444000-03:00",
+        "modifiedAt": "2026-04-22T20:36:28.058000-03:00",
+        "status": "ACTIVE",
+        "capacityType": "ON_DEMAND",
+        "scalingConfig": {
+            "minSize": 1,
+            "maxSize": 5,
+            "desiredSize": 2
+        },
+        "instanceTypes": [
+            "t3.medium"
+        ],
+        "subnets": [
+            "subnet-04268ed7064f41ff9",
+            "subnet-09c148c07fde8d64e"
+        ],
+        "amiType": "AL2023_x86_64_STANDARD",
+        "nodeRole": "arn:aws:iam::221047292361:role/default-eks-node-group-20260422232353803100000007",
+        "labels": {},
+        "resources": {
+            "autoScalingGroups": [
+                {
+                    "name": "eks-default-2026042223344686210000000c-22cedbc5-e8d4-d641-8c40-8aecf672892d"
+                }
+            ]
+        },
+        "health": {
+            "issues": []
+        },
+        "updateConfig": {
+            "maxUnavailablePercentage": 33
+        },
+        "launchTemplate": {
+            "name": "default-2026042223344023980000000a",
+            "version": "1",
+            "id": "lt-0d29f13cd603cdc2b"
+        },
+        "tags": {
+            "env": "lab",
+            "project": "eks-lab",
+            "Name": "default"
+        }
+    }
+}

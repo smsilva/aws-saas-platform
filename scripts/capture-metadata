@@ -7,6 +7,9 @@ set -euo pipefail
 
 source="${1?Usage: capture-metadata <bash|terraform>}"
 
+# Allow overriding cluster_name for clusters created outside env.conf (e.g. Terraform)
+cluster_name="${CLUSTER_NAME_OVERRIDE:-${cluster_name}}"
+
 script_dir="$(cd "$(dirname "$0")" && pwd)"
 output_dir="${script_dir}/../docs/metadata-${source}"
 

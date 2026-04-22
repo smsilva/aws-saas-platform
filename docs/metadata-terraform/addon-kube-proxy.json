@@ -1,0 +1,21 @@
+{
+    "addon": {
+        "addonName": "kube-proxy",
+        "clusterName": "wasp",
+        "status": "ACTIVE",
+        "addonVersion": "v1.34.6-eksbuild.5",
+        "health": {
+            "issues": []
+        },
+        "addonArn": "arn:aws:eks:us-east-1:221047292361:addon/wasp/kube-proxy/c6cedbc6-c1d5-0e78-0420-ba7eb077ca3c",
+        "createdAt": "2026-04-22T20:36:38.317000-03:00",
+        "modifiedAt": "2026-04-22T20:36:55.535000-03:00",
+        "tags": {
+            "env": "lab",
+            "project": "eks-lab"
+        },
+        "namespaceConfig": {
+            "namespace": "kube-system"
+        }
+    }
+}

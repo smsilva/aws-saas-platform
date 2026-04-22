@@ -1,0 +1,81 @@
+{
+    "LaunchTemplateVersions": [
+        {
+            "LaunchTemplateId": "lt-0d29f13cd603cdc2b",
+            "LaunchTemplateName": "default-2026042223344023980000000a",
+            "VersionNumber": 1,
+            "VersionDescription": "Custom launch template for default EKS managed node group",
+            "CreateTime": "2026-04-22T23:34:40+00:00",
+            "CreatedBy": "arn:aws:iam::221047292361:user/silvios",
+            "DefaultVersion": true,
+            "LaunchTemplateData": {
+                "UserData": "",
+                "TagSpecifications": [
+                    {
+                        "ResourceType": "instance",
+                        "Tags": [
+                            {
+                                "Key": "env",
+                                "Value": "lab"
+                            },
+                            {
+                                "Key": "project",
+                                "Value": "eks-lab"
+                            },
+                            {
+                                "Key": "Name",
+                                "Value": "default"
+                            }
+                        ]
+                    },
+                    {
+                        "ResourceType": "network-interface",
+                        "Tags": [
+                            {
+                                "Key": "project",
+                                "Value": "eks-lab"
+                            },
+                            {
+                                "Key": "env",
+                                "Value": "lab"
+                            },
+                            {
+                                "Key": "Name",
+                                "Value": "default"
+                            }
+                        ]
+                    },
+                    {
+                        "ResourceType": "volume",
+                        "Tags": [
+                            {
+                                "Key": "Name",
+                                "Value": "default"
+                            },
+                            {
+                                "Key": "project",
+                                "Value": "eks-lab"
+                            },
+                            {
+                                "Key": "env",
+                                "Value": "lab"
+                            }
+                        ]
+                    }
+                ],
+                "SecurityGroupIds": [
+                    "sg-0c348328e6d5c13a1",
+                    "sg-0e9304f4191605032"
+                ],
+                "MetadataOptions": {
+                    "HttpTokens": "required",
+                    "HttpPutResponseHopLimit": 2,
+                    "HttpEndpoint": "enabled"
+                }
+            },
+            "Operator": {
+                "Managed": false
+            }
+        }
+    ]
+}

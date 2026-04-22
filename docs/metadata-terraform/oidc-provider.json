@@ -1,0 +1,24 @@
+{
+    "Url": "oidc.eks.us-east-1.amazonaws.com/id/34C360B4BB4A6D34A9EBE0F20CE30B56",
+    "ClientIDList": [
+        "sts.amazonaws.com"
+    ],
+    "ThumbprintList": [
+        "06b25927c42a721631c1efd9431e648fa62e1e39"
+    ],
+    "CreateDate": "2026-04-22T23:34:12.068000+00:00",
+    "Tags": [
+        {
+            "Key": "env",
+            "Value": "lab"
+        },
+        {
+            "Key": "project",
+            "Value": "eks-lab"
+        },
+        {
+            "Key": "Name",
+            "Value": "wasp-eks-irsa"
+        }
+    ]
+}

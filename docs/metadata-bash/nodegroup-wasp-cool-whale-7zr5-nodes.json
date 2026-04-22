@@ -1,0 +1,61 @@
+{
+    "nodegroup": {
+        "nodegroupName": "wasp-cool-whale-7zr5-nodes",
+        "nodegroupArn": "arn:aws:eks:us-east-1:221047292361:nodegroup/wasp-cool-whale-7zr5/wasp-cool-whale-7zr5-nodes/f4cedbb7-7159-6606-524a-d6ece210fafe",
+        "clusterName": "wasp-cool-whale-7zr5",
+        "version": "1.34",
+        "releaseVersion": "1.34.6-20260415",
+        "createdAt": "2026-04-22T20:03:12.353000-03:00",
+        "modifiedAt": "2026-04-22T20:04:55.666000-03:00",
+        "status": "ACTIVE",
+        "capacityType": "ON_DEMAND",
+        "scalingConfig": {
+            "minSize": 2,
+            "maxSize": 5,
+            "desiredSize": 2
+        },
+        "instanceTypes": [
+            "t3.medium"
+        ],
+        "subnets": [
+            "subnet-083e7a630a8a8ad5e",
+            "subnet-0e4bd4d2526f45a75"
+        ],
+        "amiType": "AL2023_x86_64_STANDARD",
+        "nodeRole": "arn:aws:iam::221047292361:role/eksctl-wasp-cool-whale-7zr5-nodegr-NodeInstanceRole-weWwUGt9zWc4",
+        "labels": {
+            "alpha.eksctl.io/cluster-name": "wasp-cool-whale-7zr5",
+            "alpha.eksctl.io/nodegroup-name": "wasp-cool-whale-7zr5-nodes"
+        },
+        "resources": {
+            "autoScalingGroups": [
+                {
+                    "name": "eks-wasp-cool-whale-7zr5-nodes-f4cedbb7-7159-6606-524a-d6ece210fafe"
+                }
+            ]
+        },
+        "health": {
+            "issues": []
+        },
+        "updateConfig": {
+            "maxUnavailable": 1
+        },
+        "launchTemplate": {
+            "name": "eksctl-wasp-cool-whale-7zr5-nodegroup-wasp-cool-whale-7zr5-nodes",
+            "version": "1",
+            "id": "lt-0e4f8e51476a99735"
+        },
+        "tags": {
+            "aws:cloudformation:stack-name": "eksctl-wasp-cool-whale-7zr5-nodegroup-wasp-cool-whale-7zr5-nodes",
+            "alpha.eksctl.io/cluster-name": "wasp-cool-whale-7zr5",
+            "alpha.eksctl.io/nodegroup-name": "wasp-cool-whale-7zr5-nodes",
+            "aws:cloudformation:stack-id": "arn:aws:cloudformation:us-east-1:221047292361:stack/eksctl-wasp-cool-whale-7zr5-nodegroup-wasp-cool-whale-7zr5-nodes/62321e90-3e9f-11f1-9fe4-0afff969a38d",
+            "eksctl.cluster.k8s.io/v1alpha1/cluster-name": "wasp-cool-whale-7zr5",
+            "aws:cloudformation:logical-id": "ManagedNodeGroup",
+            "project": "eks-lab",
+            "alpha.eksctl.io/nodegroup-type": "managed",
+            "env": "lab",
+            "alpha.eksctl.io/eksctl-version": "0.225.0"
+        }
+    }
+}

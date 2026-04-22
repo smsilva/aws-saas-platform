@@ -1,0 +1,21 @@
+{
+    "addon": {
+        "addonName": "vpc-cni",
+        "clusterName": "wasp",
+        "status": "ACTIVE",
+        "addonVersion": "v1.21.1-eksbuild.7",
+        "health": {
+            "issues": []
+        },
+        "addonArn": "arn:aws:eks:us-east-1:221047292361:addon/wasp/vpc-cni/28cedbc5-a227-876a-dc11-f9842b2d955f",
+        "createdAt": "2026-04-22T20:34:11.074000-03:00",
+        "modifiedAt": "2026-04-22T20:34:29.084000-03:00",
+        "tags": {
+            "env": "lab",
+            "project": "eks-lab"
+        },
+        "namespaceConfig": {
+            "namespace": "kube-system"
+        }
+    }
+}

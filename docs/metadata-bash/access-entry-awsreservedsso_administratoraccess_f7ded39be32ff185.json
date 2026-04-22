@@ -1,0 +1,13 @@
+{
+    "accessEntry": {
+        "clusterName": "wasp-cool-whale-7zr5",
+        "principalArn": "arn:aws:iam::221047292361:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_AdministratorAccess_f7ded39be32ff185",
+        "kubernetesGroups": [],
+        "accessEntryArn": "arn:aws:eks:us-east-1:221047292361:access-entry/wasp-cool-whale-7zr5/role/221047292361/AWSReservedSSO_AdministratorAccess_f7ded39be32ff185/5ccedbb8-eee5-4038-5cd7-b8f5c82b154b",
+        "createdAt": "2026-04-22T20:06:26.190000-03:00",
+        "modifiedAt": "2026-04-22T20:06:26.190000-03:00",
+        "tags": {},
+        "username": "arn:aws:sts::221047292361:assumed-role/AWSReservedSSO_AdministratorAccess_f7ded39be32ff185/{{SessionName}}",
+        "type": "STANDARD"
+    }
+}

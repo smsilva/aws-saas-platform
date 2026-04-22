@@ -1,0 +1,38 @@
+{
+    "Role": {
+        "Path": "/",
+        "RoleName": "default-eks-node-group-20260422232353803100000007",
+        "RoleId": "AROATG53SAHE6R2NIJ52H",
+        "Arn": "arn:aws:iam::221047292361:role/default-eks-node-group-20260422232353803100000007",
+        "CreateDate": "2026-04-22T23:23:53+00:00",
+        "AssumeRolePolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Sid": "EKSNodeAssumeRole",
+                    "Effect": "Allow",
+                    "Principal": {
+                        "Service": "ec2.amazonaws.com"
+                    },
+                    "Action": "sts:AssumeRole"
+                }
+            ]
+        },
+        "Description": "EKS managed node group IAM role",
+        "MaxSessionDuration": 3600,
+        "Tags": [
+            {
+                "Key": "env",
+                "Value": "lab"
+            },
+            {
+                "Key": "project",
+                "Value": "eks-lab"
+            }
+        ],
+        "RoleLastUsed": {
+            "LastUsedDate": "2026-04-22T23:35:58+00:00",
+            "Region": "us-east-1"
+        }
+    }
+}

@@ -1,0 +1,12 @@
+{
+    "AttachedPolicies": [
+        {
+            "PolicyName": "wasp-cluster-ClusterEncryption20260422232403547000000008",
+            "PolicyArn": "arn:aws:iam::221047292361:policy/wasp-cluster-ClusterEncryption20260422232403547000000008"
+        },
+        {
+            "PolicyName": "AmazonEKSClusterPolicy",
+            "PolicyArn": "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy"
+        }
+    ]
+}
