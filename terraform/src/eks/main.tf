@@ -1,5 +1,25 @@
 data "aws_region" "current" {}
 
+resource "aws_iam_role" "vpc_cni" {
+  name = "${var.name}-vpc-cni"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "pods.eks.amazonaws.com" }
+      Action    = ["sts:AssumeRole", "sts:TagSession"]
+    }]
+  })
+
+  tags = var.tags
+}
+
+resource "aws_iam_role_policy_attachment" "vpc_cni" {
+  role       = aws_iam_role.vpc_cni.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+}
+
 module "eks" {
   source  = "terraform-aws-modules/eks/aws"
   version = "~> 21.18"
@@ -14,7 +34,26 @@ module "eks" {
 
   access_entries = var.access_entries
 
-  addons = var.addons
+  addons = merge(
+    var.addons,
+    {
+      eks-pod-identity-agent = {
+        before_compute = true
+        most_recent    = true
+      }
+    },
+    {
+      vpc-cni = merge(
+        try(var.addons["vpc-cni"], {}),
+        {
+          pod_identity_association = [{
+            role_arn        = aws_iam_role.vpc_cni.arn
+            service_account = "aws-node"
+          }]
+        }
+      )
+    }
+  )
 
   eks_managed_node_groups = {
     default = {
