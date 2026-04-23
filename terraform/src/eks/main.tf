@@ -43,6 +43,10 @@ module "eks" {
         }
       }
 
+      update_config = {
+        max_unavailable = 1
+      }
+
       attach_cluster_primary_security_group = true
     }
   }

@@ -68,6 +68,9 @@ variable "addons" {
     coredns = {
       most_recent = true
     }
+    metrics-server = {
+      most_recent = true
+    }
   }
 }
 
