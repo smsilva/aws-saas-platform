@@ -284,6 +284,28 @@ def test_profile_shows_all_claims(authenticated_client):
 
 # ── Logout (/logout) ─────────────────────────────────────────────────────────
 
+def test_logout_uses_configurable_redirect_param_cognito(authenticated_client, monkeypatch):
+    """Cognito uses `logout_uri`; setting IDP_LOGOUT_REDIRECT_PARAM must override the default."""
+    monkeypatch.setattr("app.main.IDP_LOGOUT_URL", "https://idp.wasp.silvios.me/logout")
+    monkeypatch.setattr("app.main.LOGOUT_CALLBACK_URL", "https://auth.wasp.silvios.me/logout/callback")
+    monkeypatch.setattr("app.main.IDP_LOGOUT_REDIRECT_PARAM", "logout_uri")
+    response = authenticated_client.get("/logout")
+    assert response.status_code == 302
+    location = response.headers["location"]
+    assert "logout_uri=" in location
+    assert "post_logout_redirect_uri" not in location
+
+
+def test_logout_defaults_to_post_logout_redirect_uri(authenticated_client, monkeypatch):
+    """Default value must be post_logout_redirect_uri (Keycloak-compatible)."""
+    monkeypatch.setattr("app.main.IDP_LOGOUT_URL", "http://idp.wasp.local:32080/realms/wasp/protocol/openid-connect/logout")
+    monkeypatch.setattr("app.main.LOGOUT_CALLBACK_URL", "http://customer1.wasp.local:32080/logout/callback")
+    monkeypatch.setattr("app.main.IDP_LOGOUT_REDIRECT_PARAM", "post_logout_redirect_uri")
+    response = authenticated_client.get("/logout")
+    location = response.headers["location"]
+    assert "post_logout_redirect_uri=" in location
+
+
 def test_logout_redirects_to_idp_logout_url(authenticated_client, monkeypatch):
     monkeypatch.setattr("app.main.IDP_LOGOUT_URL", "http://idp.wasp.local:32080/realms/wasp/protocol/openid-connect/logout")
     monkeypatch.setattr("app.main.LOGOUT_CALLBACK_URL", "http://customer1.wasp.local:32080/logout/callback")
