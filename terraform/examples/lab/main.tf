@@ -32,6 +32,18 @@ module "eks" {
   node_min_count     = 1
   node_max_count     = 5
   tags               = local.tags
+
+  access_entries = {
+    sso_admin = {
+      principal_arn = "arn:aws:iam::221047292361:role/aws-reserved/sso.amazonaws.com/AWSReservedSSO_AdministratorAccess_f7ded39be32ff185"
+      policy_associations = {
+        admin = {
+          policy_arn   = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+          access_scope = { type = "cluster" }
+        }
+      }
+    }
+  }
 }
 
 module "dynamodb" {

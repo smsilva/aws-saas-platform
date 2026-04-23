@@ -71,6 +71,12 @@ variable "addons" {
   }
 }
 
+variable "access_entries" {
+  description = "Access entries to add to the cluster (map of principal ARN to policy associations)"
+  type        = any
+  default     = {}
+}
+
 variable "tags" {
   description = "Tags to apply to all resources"
   type        = map(string)
