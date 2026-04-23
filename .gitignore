@@ -27,3 +27,6 @@ override.tf.json
 **/*.log
 **/docker_build_temp
 **/*.zip
+
+# pytest coverage
+**/.coverage
