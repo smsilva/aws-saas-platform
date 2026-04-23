@@ -284,7 +284,6 @@ Usa `terraform-aws-modules/eks ~> 21.18` internamente (complexidade de IAM/OIDC 
 
 **Gaps restantes (conscientemente adiados):**
 - `node_min_count` default = 1 (bash usa 2) — mantido em 1 para economizar custo no lab
-- IRSA para vpc-cni substituído por Pod Identity (solução mais moderna, WAF-alinhada)
 
 ---
 
