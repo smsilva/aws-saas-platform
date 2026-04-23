@@ -1,0 +1,400 @@
+#!/bin/bash
+# add-tenant: adiciona um novo tenant ao lab local k3d.
+#
+# O que faz:
+#   1. Atualiza o ConfigMap discovery-seed (adiciona novo tenant)
+#   2. Reinicia o discovery para recarregar o seed
+#   3. Adiciona a variável IDP_CLIENT_SECRET_<TENANT> ao Secret do callback-handler
+#   4. Reinicia o callback-handler
+#   5. Faz deploy do namespace K8s com httpbin + tenant-frontend + Istio auth
+#
+# Pré-requisitos:
+#   - Scripts 01-07 executados (cluster + serviços base rodando)
+#   - KEYCLOAK_CLIENT_SECRET em env.secrets (gravado pelo 05-deploy-keycloak)
+#   - STATE_JWT_SECRET em env.secrets (gravado pelo 06-deploy-services)
+
+set -euo pipefail
+. "$(dirname "$0")/env.conf"
+
+scripts_dir="$(cd "$(dirname "$0")" && pwd)"
+secrets_file="${scripts_dir}/env.secrets"
+services_dir="${scripts_dir}/../../services"
+
+if [[ -f "${secrets_file}" ]]; then
+  # shellcheck source=/dev/null
+  . "${secrets_file}"
+fi
+
+show_usage() {
+  cat <<EOF
+
+  Adiciona um novo tenant ao lab local k3d.
+  Pré-requisito: scripts 01-07 executados (cluster e serviços base rodando).
+
+    Options:
+
+      -h, --help      Show this help
+      -t, --tenant    Nome do tenant (ex: customer3)
+      -d, --domain    Domínio do tenant (ex: customer3.com)
+
+    Examples:
+
+      ${0##*/} --tenant customer3 --domain customer3.com
+
+EOF
+}
+
+while [[ "${1:-}" =~ ^- && ! "${1:-}" == "--" ]]; do
+  case $1 in
+    -h | --help )
+      show_usage
+      exit 0
+      ;;
+    -t | --tenant )
+      shift
+      tenant="${1}"
+      ;;
+    -d | --domain )
+      shift
+      tenant_domain="${1}"
+      ;;
+    * )
+      echo "Invalid option: ${1}"
+      show_usage
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+if [[ "${1:-}" == '--' ]]; then shift; fi
+
+# =============================================================================
+# Validação
+# =============================================================================
+missing=false
+for arg in tenant tenant_domain; do
+  if [[ -z "${!arg:-}" ]]; then
+    echo "Erro: --${arg//_/-} é obrigatório"
+    missing=true
+  fi
+done
+
+for var in KEYCLOAK_CLIENT_SECRET STATE_JWT_SECRET; do
+  if [[ -z "${!var:-}" ]]; then
+    echo "Erro: ${var} não definido em env.secrets — execute scripts/05-deploy-keycloak e 06-deploy-services primeiro"
+    missing=true
+  fi
+done
+
+if [[ "${missing}" == true ]]; then
+  show_usage
+  exit 1
+fi
+
+tenant_upper="${tenant^^}"
+image_tag="$(git -C "${services_dir}" rev-parse --short HEAD)"
+container_image_tenant_frontend="${image_tenant_frontend}:${image_tag}"
+
+jwt_issuer="http://idp.${domain}:${haproxy_nodeport}/realms/${keycloak_realm}"
+jwks_uri="http://keycloak.${keycloak_namespace}.svc.cluster.local:8080/realms/${keycloak_realm}/protocol/openid-connect/certs"
+
+# =============================================================================
+# 1. Atualiza ConfigMap discovery-seed
+# =============================================================================
+echo "Atualizando ConfigMap discovery-seed (adicionando ${tenant})..."
+
+new_tenants_json=$(
+  kubectl get configmap discovery-seed -n discovery \
+    -o jsonpath='{.data.tenants\.json}' \
+  | TENANT_ID="${tenant}" \
+    TENANT_DOMAIN="${tenant_domain}" \
+    TENANT_URL="http://${tenant}.${domain}:${haproxy_nodeport}" \
+    CLIENT_ID="${keycloak_client_id}" \
+    python3 -c "
+import sys, json, os
+tenant_id  = os.environ['TENANT_ID']
+domain     = os.environ['TENANT_DOMAIN']
+tenant_url = os.environ['TENANT_URL']
+client_id  = os.environ['CLIENT_ID']
+tenants = json.load(sys.stdin)
+if not any(t['tenant_id'] == tenant_id for t in tenants):
+    tenants.append({
+        'domain':     domain,
+        'tenant_id':  tenant_id,
+        'tenant_url': tenant_url,
+        'client_id':  client_id,
+        'idp_name':   '',
+        'idp_pool_id': '',
+    })
+print(json.dumps(tenants, indent=2))
+"
+)
+
+kubectl apply -f - <<EOF
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: discovery-seed
+  namespace: discovery
+data:
+  tenants.json: |
+$(echo "${new_tenants_json}" | sed 's/^/    /')
+EOF
+
+echo "Reiniciando discovery para recarregar seed..."
+kubectl -n discovery rollout restart deployment/discovery
+kubectl -n discovery rollout status deployment/discovery --timeout=180s
+
+# =============================================================================
+# 2. Adiciona client secret do novo tenant ao callback-handler
+# =============================================================================
+echo "Adicionando IDP_CLIENT_SECRET_${tenant_upper} ao Secret do callback-handler..."
+
+kubectl patch secret callback-handler-secret -n auth \
+  --type merge \
+  --patch "{\"stringData\":{\"IDP_CLIENT_SECRET_${tenant_upper}\": \"${KEYCLOAK_CLIENT_SECRET}\"}}"
+
+kubectl -n auth rollout restart deployment/callback-handler
+echo "Aguardando rollout do callback-handler..."
+kubectl -n auth rollout status deployment/callback-handler --timeout=180s
+
+# =============================================================================
+# 3. Deploy do namespace do novo tenant
+# =============================================================================
+echo "Deploying namespace ${tenant}..."
+
+kubectl apply -f - <<EOF
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${tenant}
+  labels:
+    istio-injection: enabled
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: httpbin
+  namespace: ${tenant}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: httpbin
+  template:
+    metadata:
+      labels:
+        app: httpbin
+    spec:
+      containers:
+        - name: httpbin
+          image: kennethreitz/httpbin
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: httpbin
+  namespace: ${tenant}
+spec:
+  selector:
+    app: httpbin
+  ports:
+    - port: 8000
+      targetPort: 80
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: tenant-frontend-config
+  namespace: ${tenant}
+data:
+  HTTPBIN_URL: "http://httpbin.${domain}:${haproxy_nodeport}"
+  PLATFORM_URL: "http://${domain}:${haproxy_nodeport}"
+  CUSTOMER1_URL: "http://customer1.${domain}:${haproxy_nodeport}"
+  CUSTOMER2_URL: "http://customer2.${domain}:${haproxy_nodeport}"
+  IDP_LOGOUT_URL: "http://idp.${domain}:${haproxy_nodeport}/realms/wasp/protocol/openid-connect/logout"
+  LOGOUT_CALLBACK_URL: "http://${tenant}.${domain}:${haproxy_nodeport}/logout/callback"
+  IDP_CLIENT_ID: "${keycloak_client_id}"
+  COOKIE_DOMAIN: ".${domain}"
+  COOKIE_SECURE: "false"
+  LOG_LEVEL: "INFO"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tenant-frontend
+  namespace: ${tenant}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: tenant-frontend
+  template:
+    metadata:
+      labels:
+        app: tenant-frontend
+    spec:
+      containers:
+        - name: tenant-frontend
+          image: ${container_image_tenant_frontend}
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: tenant-frontend-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tenant-frontend
+  namespace: ${tenant}
+spec:
+  selector:
+    app: tenant-frontend
+  ports:
+    - port: 8000
+      targetPort: 8000
+---
+apiVersion: networking.istio.io/v1
+kind: Gateway
+metadata:
+  name: ${tenant}-gateway
+  namespace: ${tenant}
+spec:
+  selector:
+    app: istio-ingressgateway
+  servers:
+    - port:
+        number: 80
+        name: http
+        protocol: HTTP
+      hosts:
+        - "${tenant}.${domain}"
+---
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: ${tenant}
+  namespace: ${tenant}
+spec:
+  hosts:
+    - "${tenant}.${domain}"
+  gateways:
+    - ${tenant}-gateway
+  http:
+    - match:
+        - uri:
+            prefix: /httpbin
+      corsPolicy:
+        allowOrigins:
+          - regex: "http://.*[.]${domain}:${haproxy_nodeport}"
+        allowMethods: ["GET", "OPTIONS"]
+        allowHeaders: ["authorization", "content-type"]
+        maxAge: "24h"
+      rewrite:
+        uri: /
+      route:
+        - destination:
+            host: httpbin
+            port:
+              number: 8000
+    - corsPolicy:
+        allowOrigins:
+          - regex: "http://.*[.]${domain}:${haproxy_nodeport}"
+        allowMethods: ["GET", "OPTIONS"]
+        allowHeaders: ["authorization", "content-type"]
+        maxAge: "24h"
+      route:
+        - destination:
+            host: tenant-frontend
+            port:
+              number: 8000
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: allow-health-check
+  namespace: ${tenant}
+spec:
+  action: ALLOW
+  rules:
+    - to:
+        - operation:
+            paths: ["/health"]
+    - to:
+        - operation:
+            methods: ["OPTIONS"]
+---
+apiVersion: security.istio.io/v1beta1
+kind: RequestAuthentication
+metadata:
+  name: keycloak-jwt
+  namespace: ${tenant}
+spec:
+  jwtRules:
+    - issuer: "${jwt_issuer}"
+      jwksUri: "${jwks_uri}"
+      forwardOriginalToken: true
+      fromCookies:
+        - session
+      fromHeaders:
+        - name: Authorization
+          prefix: "Bearer "
+---
+apiVersion: security.istio.io/v1beta1
+kind: AuthorizationPolicy
+metadata:
+  name: require-tenant-jwt
+  namespace: ${tenant}
+spec:
+  action: ALLOW
+  rules:
+    - when:
+        - key: request.auth.claims[custom:tenant_id]
+          values: ["${tenant}"]
+    - to:
+        - operation:
+            methods: ["OPTIONS"]
+EOF
+
+# =============================================================================
+# 4. Aguarda deployments
+# =============================================================================
+echo "Aguardando deployments ${tenant}..."
+for deploy in httpbin tenant-frontend; do
+  kubectl -n "${tenant}" wait deployment/"${deploy}" \
+    --for condition=Available \
+    --timeout=180s
+  echo "  ${tenant}/${deploy}: pronto"
+done
+
+# =============================================================================
+# Verificação
+# =============================================================================
+echo ""
+echo "--- Verificação ---"
+
+echo ""
+echo "Namespace ${tenant}:"
+kubectl -n "${tenant}" get deployment,svc,gateway,virtualservice,requestauthentication,authorizationpolicy
+
+echo ""
+echo "--- /etc/hosts necessário ---"
+echo "  127.0.0.1 ${tenant}.${domain}"
+echo ""
+echo "--- Testes de fumo ---"
+echo ""
+echo "Sem JWT → 403:"
+echo "  curl -i http://${tenant}.${domain}:${haproxy_nodeport}/"
+echo ""
+echo "Discovery:"
+echo "  curl \"http://discovery.${domain}:${haproxy_nodeport}/tenant?domain=${tenant_domain}\""
+echo ""
+echo "Registro do tenant no Keycloak:"
+echo "  Adicione o usuário em http://idp.${domain}:${haproxy_nodeport}/admin"
+echo "  Realm: ${keycloak_realm} — atributo custom:tenant_id = ${tenant}"
