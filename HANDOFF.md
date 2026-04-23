@@ -1,440 +1,106 @@
-# HANDOFF — Ambiente Local com k3d + Terraform AWS
+# HANDOFF — aws-saas-platform
 
-## Terraform AWS — Iniciativa em andamento (2026-04-21)
+## Estado atual (2026-04-22)
 
-**Goal:** migrar provisionamento AWS (atualmente bash scripts) para Terraform.
-
-**Escopo:** VPC + EKS cluster + DynamoDB + Cognito + WAF (scripts 01, 02, 09–12).
-Kubectl/Helm (scripts 03–08, 13–15) permanecem fora do Terraform por ora.
-
-**Estratégia:** recriar do zero (cluster `wasp-cool-whale-7zr5` será destruído antes).
-Sem `terraform import` — fresh state.
-
-**Backend S3:**
-- Bucket: `silvios-wasp-foundation` (região `us-west-2`)
-- State key: `terraform/aws-saas-platform/wasp.tfstate`
-
-**Referência de variáveis:** `scripts/env.conf` — região, CIDRs, instance types, tags.
+**Recursos AWS:** todos destruídos. Estado limpo.
+**Branch ativa:** `dev`
 
 ---
 
-### Estrutura de diretórios (espelhar `~/git/azure-kubernetes`)
+## Terraform — módulos implementados
 
-```
-terraform/
-├── src/                        # módulos reutilizáveis (equivalente a azure-kubernetes/src/)
-│   ├── vpc/
-│   │   ├── main.tf
-│   │   ├── variables.tf
-│   │   └── outputs.tf
-│   ├── eks/
-│   │   ├── main.tf             # usa terraform-aws-modules/eks internamente
-│   │   ├── variables.tf
-│   │   └── outputs.tf
-│   ├── dynamodb/
-│   │   ├── main.tf
-│   │   ├── variables.tf
-│   │   └── outputs.tf
-│   ├── cognito/
-│   │   ├── main.tf
-│   │   ├── variables.tf
-│   │   └── outputs.tf
-│   └── waf/
-│       ├── main.tf
-│       ├── variables.tf
-│       └── outputs.tf
-├── examples/
-│   ├── common/                 # arquivos compartilhados via symlink (equivalente a azure-kubernetes/examples/common/)
-│   │   ├── create-symbolic-links  # script bash que cria os symlinks nos exemplos
-│   │   ├── provider.tf         # backend S3 + provider aws
-│   │   └── variables.tf        # variáveis comuns (region, tags, domain, cert_arn)
-│   └── lab/                    # exemplo completo do lab
-│       ├── main.tf             # locals + módulos vpc/eks/dynamodb/cognito/waf
-│       └── outputs.tf
-│       # provider.tf e variables.tf são symlinks para common/
-└── stack.yaml                  # metadados (nome, versão tf, backend)
-```
+Todos os módulos em `terraform/src/` estão completos e validados (`terraform validate` ✅).
 
-### Convenções (baseadas no azure-kubernetes)
+| Módulo | Recursos criados |
+|---|---|
+| `src/vpc` | VPC, subnets (nomeadas), IGW, NAT GW, route tables, EKS subnet tags |
+| `src/eks` | EKS cluster (via `terraform-aws-modules/eks ~> 21.18`), managed node group, OIDC, Pod Identity (vpc-cni) |
+| `src/dynamodb` | DynamoDB PROVISIONED, GSI, seed items |
+| `src/cognito` | Lambda pre-token-generation (compartilhada) + IAM |
+| `src/cognito/userpool` | User Pool por tenant, IdP (Google/Microsoft), App Client |
+| `src/waf` | WAFv2 REGIONAL, 3 managed rules, associação ALB opcional |
 
-- **`locals {}`** no `main.tf` do exemplo para valores fixos; não usar `terraform.tfvars` para o lab
-- **Módulos referenciados** com `source = "../../src/<modulo>"`
-- **`output "instance"`** em cada módulo exporta o recurso inteiro; `output "id"` exporta só o ID
-- **`output "kubeconfig"`** (eks) com `sensitive = true`
-- **Versões de provider** com ranges: `>= 6.0.0, < 7.0.0`
-- **`depends_on`** explícito quando módulos dependem de outros (ex: eks depende de vpc)
-- **`count = local.install_X ? 1 : 0`** para recursos opcionais
-- Nunca colocar backend no módulo (`src/`) — só nos exemplos via `common/provider.tf`
-- Symlinks criados com script `common/create-symbolic-links`; rodar antes do primeiro `terraform init`
+**Exemplo:** `terraform/examples/lab/` — instância completa do lab (VPC + EKS + DynamoDB + Cognito + WAF).  
+**Backend S3:** bucket `silvios-wasp-foundation` (us-west-2), key `terraform/aws-saas-platform/wasp.tfstate`.
 
-#### Convenção de subnets — objetos nomeados
+### Gaps corrigidos (sessão 2026-04-22 — comparação bash vs Terraform)
 
-Subnets definidas como lista de objetos `{ cidr, name, az, public }`, permitindo referência por nome no exemplo:
-
-```hcl
-# em locals do exemplo
-virtual_network_subnets = [
-  { cidr = "10.0.1.0/24", name = "public-1a",  az = "us-east-1a", public = true  },
-  { cidr = "10.0.2.0/24", name = "public-1b",  az = "us-east-1b", public = true  },
-  { cidr = "10.0.3.0/24", name = "private-1a", az = "us-east-1a", public = false },
-  { cidr = "10.0.4.0/24", name = "private-1b", az = "us-east-1b", public = false },
-]
-
-# referência por nome (output do módulo vpc)
-subnet_ids = module.vpc.subnets["private-1a"].id
-```
-
-O módulo VPC expõe `output "subnets"` como `map(object)` keyed por `name`.
-
-#### Módulos locais vs. externos
-
-Módulos em `src/` são **locais** por ora — recursos AWS escritos diretamente, sem wrapper de repositório externo (ex: sem `git@github.com:smsilva/aws-network.git`). Extração para repositório separado é trabalho futuro. Módulos do Terraform Registry público (`terraform-aws-modules/eks`) ainda são permitidos onde a complexidade justifica (ex: EKS com OIDC, IAM roles, managed node groups).
-
-### Versões de providers (verificado 2026-04-21)
-
-| Provider / Module | Versão | Constraint |
-|---|---|---|
-| hashicorp/aws | 6.41.0 | `>= 6.0.0, < 7.0.0` |
-| terraform-aws-modules/eks/aws | 21.18.0 | `~> 21.18` |
-| hashicorp/archive | latest 2.x | `>= 2.0.0, < 3.0.0` |
-
-> `terraform-aws-modules/vpc` **não será usado** — módulo VPC escrito localmente para suportar a convenção de subnets nomeadas.
-
-### Plano incremental (etapas sequenciais)
-
-Cada etapa termina com `terraform validate` (ou apply+destroy) antes de avançar.
-
-#### Etapa 1 — Scaffold ✅
-Criar estrutura de diretórios + arquivos de metadados raiz. Sem código Terraform ainda.
-- `terraform/stack.yaml` — nome, versão tf, config backend S3
-- `terraform/cz.yaml` — commitizen (espelhar `azure-kubernetes/cz.yaml`)
-- `terraform/examples/lab/backend.conf` — parâmetros S3 para `tfi` (`--backend-config`); ignorado pelo `.gitignore`
-- Pastas vazias: `src/{vpc,eks,dynamodb,cognito,waf}/` e `examples/{common,lab}/`
-
-#### Etapa 2 — Common provider + symlinks ✅
-Criar config compartilhada de provider, usada via symlink por todos os exemplos.
-- `examples/common/provider.tf` — backend S3 + providers aws/archive
-- `examples/common/variables.tf` — region, domain, cert_arn, tags, google_client_id (sensitive), google_client_secret (sensitive)
-- `examples/common/create-symbolic-links` — script bash que cria symlinks nos exemplos
-
-#### Etapa 3 — Módulo VPC (recursos locais + subnets nomeadas) ✅
-Módulo escrito diretamente com recursos AWS — sem wrapper de módulo externo.
-- `src/vpc/main.tf` — `aws_vpc`, `aws_subnet` (for_each em `var.subnets`), `aws_internet_gateway`, `aws_eip`, `aws_nat_gateway` (em subnet pública com menor índice), `aws_route_table` (public + private), `aws_route_table_association`; EKS subnet tags (elb / internal-elb / cluster owned)
-- `src/vpc/variables.tf` — `name`, `cidr`, `subnets` (list of `{ cidr, name, availability_zone, public }`), `tags`
-- `src/vpc/outputs.tf` — `id` (vpc_id), `instance` (aws_vpc), `subnets` (map keyed by name → `{ id, instance }`), `public_subnet_ids`, `private_subnet_ids`
-
-**Decisões tomadas:**
-- Campo `az` renomeado para `availability_zone` para clareza
-- `cluster_name` removido — EKS subnet tags usam `var.name` (VPC e cluster compartilham o mesmo nome)
-- `var.domain` e `var.cert_arn` têm defaults com valores do lab para não exigir `-var` no `terraform plan`
-
-#### Etapa 4 — Exemplo lab (checkpoint validate+plan) ✅
-- `examples/lab/main.tf` — locals com valores fixos + `module "vpc"`
-- `examples/lab/outputs.tf` — vpc_id, public_subnet_ids, private_subnet_ids
-- `provider.tf` e `variables.tf` são symlinks para `common/`
-- `terraform validate` ✅ e `terraform plan` ✅ — 16 recursos planejados
-- `apply` + `destroy` **pendentes** — deixados para quando EKS estiver pronto (Etapa 5)
-
-#### Makefile ✅
-- `terraform/Makefile` — targets `init`, `plan`, `apply`, `destroy` com `-chdir=examples/lab` e `-backend-config=backend.conf`
-
-#### Etapa 5 — Módulo EKS ✅
-Usa `terraform-aws-modules/eks ~> 21.18` internamente (complexidade de IAM/OIDC justifica).
-- `src/eks/main.tf` — wraps `terraform-aws-modules/eks/aws ~> 21.18`; `endpoint_public_access=true`; node group nas subnets privadas; local `kubeconfig` gerado com `aws eks get-token`
-- `src/eks/variables.tf` — name, cluster_version, vpc_id, subnet_ids, private_subnet_ids, node_instance_type, node_min_count/max_count/desired_count, tags
-- `src/eks/outputs.tf` — id, instance (sensitive), cluster_name, cluster_endpoint, oidc_provider_arn, kubeconfig (sensitive)
-- `examples/lab/main.tf` — local.name adicionado; module "vpc" usa local.name; module "eks" adicionado (sem depends_on — dependência já expressa pelos argumentos)
-- `examples/lab/outputs.tf` — cluster_name, cluster_endpoint, oidc_provider_arn adicionados
-- `terraform validate` ✅ e `terraform plan` ✅ — **49 recursos planejados** (16 VPC + 33 EKS)
-- `apply` + `destroy` pendentes — executar quando pronto para provisionar o cluster real
-
-**Decisões tomadas (Etapa 5):**
-- `terraform-aws-modules/eks` v21 usa `name` (não `cluster_name`), `kubernetes_version` (não `cluster_version`), `endpoint_public_access` (não `cluster_endpoint_public_access`)
-- `depends_on = [module.vpc]` removido do `module "eks"` — causava "count depends on unknown values" durante plan; dependência já implícita pelos argumentos `vpc_id` e `subnet_ids`
-- `data.aws_region.current.id` em vez de `.name` (deprecated no provider v6)
-- Variáveis de contagem de nodes usam `_count` (não `_size`) para consistência com o projeto
-
-**Próximo passo:** Etapa 6 — Módulo DynamoDB
-
-#### Etapa 6 — Módulo DynamoDB ✅
-- `src/dynamodb/main.tf` — `aws_dynamodb_table` PROVISIONED; `dynamic "attribute"` para lista de campos; `dynamic "global_secondary_index"` com `key_schema` block interno (API não deprecated do provider v6)
-- `src/dynamodb/variables.tf` — `table_name`, `hash_key`, `attributes` (list `{name, type}`), `global_secondary_indexes` (list com opcionais: `projection_type`, `read_capacity`, `write_capacity`), `read_capacity`, `write_capacity`, `tags`
-- `src/dynamodb/outputs.tf` — `id`, `arn`, `instance`
-- `examples/lab/main.tf` — `module "dynamodb"` com `tenant-registry`, pk `pk`, GSI `client-id-index` em `cognito_app_client_id`
-- `terraform validate` ✅ e `terraform plan` ✅ — **50 recursos planejados** (49 anteriores + 1 DynamoDB)
-
-**Decisões tomadas (Etapa 6):**
-- `global_secondary_index.hash_key` deprecated no provider v6 — substituído por bloco `key_schema { attribute_name, key_type }` internamente; interface da variável mantém `hash_key` string para simplicidade
-- `global_secondary_indexes` como lista (default `[]`) é a "variável que indica se vai ter index" — lista vazia = sem GSI
-- Recurso nomeado `default` (convenção do projeto, não `this`)
-- `attributes` como lista de objetos `{name, type}` permite declarar todos os atributos usados em índices no exemplo
-
-**Próximo passo:** Etapa 7 — Módulo Cognito
-
-#### Etapa 7 — Módulo Cognito ✅
-
-**Arquitetura:** Lambda compartilhada (`src/cognito/`) + User Pool por tenant (`src/cognito/userpool/`).
-
-**`src/cognito/`** — cria a Lambda compartilhada e expõe o ARN:
-- `lambda/lambda_function.py` — pre-token generation; consulta DynamoDB GSI `client-id-index` via `cognito_app_client_id` e injeta `custom:tenant_id`
-- `iam.tf` — IAM role + `AWSLambdaBasicExecutionRole` + policy inline `dynamodb:Query` no GSI
-- `lambda.tf` — `archive_file` (zip) + `aws_lambda_function`; env var `DYNAMODB_TABLE`
-- `variables.tf` — `name`, `dynamodb_table_name`, `dynamodb_table_arn`, `tags`
-- `outputs.tf` — `lambda_arn`
-
-**`src/cognito/userpool/`** — módulo standalone; uma instância por tenant:
-- `main.tf` — `locals` (idp_name derivado, callback/logout URLs com defaults), `aws_cognito_user_pool` (schema `custom:tenant_id`, trigger `pre_token_generation`), `aws_lambda_permission` com `statement_id` único por tenant
-- `idp.tf` — `aws_cognito_identity_provider` Google (`count = idp_type=="google"`) e Microsoft OIDC (`count = idp_type=="microsoft"`); nome derivado: `Google-${title(tenant)}` / `MicrosoftAD-${title(tenant)}`
-- `client.tf` — `aws_cognito_user_pool_client` com `for_each`-ready interface; `supported_identity_providers` dinâmico
-- `variables.tf` — `tenant`, `name`, `domain`, `lambda_arn`, `idp_type` (validado), `idp_client_id/secret` (sensitive), `idp_oidc_issuer` (default Microsoft personal), `callback_urls`, `logout_urls`, `tags`
-- `outputs.tf` — `user_pool_id`, `user_pool_arn`, `app_client_id`, `instance` (sensitive)
-
-**`examples/lab/main.tf`** — `module "cognito"` + `module "userpool_customer1"`; outputs `cognito_lambda_arn`, `customer1_user_pool_id`, `customer1_app_client_id`
-
-**`terraform validate` ✅ e `terraform plan` ✅ — 58 recursos planejados** (50 anteriores + 8 Cognito)
-
-**Decisões tomadas (Etapa 7):**
-- Lambda compartilhada (`src/cognito/`) separada dos User Pools (`src/cognito/userpool/`) — evita duplicar Lambda + IAM por tenant
-- `aws_lambda_permission.statement_id = "CognitoPreTokenGeneration-${var.tenant}"` — evita conflito quando múltiplos pools referenciam a mesma Lambda
-- `idp_type` com `validation` block — falha rápido em valores inválidos
-- `idp_name` local no `main.tf` do userpool — compartilhado entre `idp.tf` e `client.tf`
-- `callback_urls`/`logout_urls` com defaults derivados de `var.domain` e `var.tenant` — não exige sobrescrever para o caso padrão
-- Nomenclatura no exemplo: `cognito_userpool_customer1` (renomeado de `userpool_customer1` em 2026-04-22) — prefixo `cognito_` adicionado para deixar clara a origem do recurso no `outputs.tf`
-
-**Próximo passo:** Etapa 8 — Módulo WAF
-
-#### Etapa 8 — Módulo WAF ✅
-- `src/waf/main.tf` — `aws_wafv2_web_acl` REGIONAL; 3 managed rules (CommonRuleSet p1, KnownBadInputs p2, IpReputation p3); associação ALB opcional (`count = var.alb_arn != "" ? 1 : 0`)
-- `src/waf/variables.tf` — name, alb_arn (default ""), tags
-- `src/waf/outputs.tf` — id, instance, arn
-- `examples/lab/main.tf` — `module "waf"` adicionado
-- `examples/lab/outputs.tf` — `waf_arn`, `waf_id` adicionados
-- `terraform validate` ✅ e `terraform plan` ✅ — **59 recursos planejados** (58 anteriores + 1 WAF; associação ALB com `count=0` pois `alb_arn=""`)
-
-**Decisões tomadas (Etapa 8):**
-- `aws_wafv2_web_acl_association` com `count = var.alb_arn != "" ? 1 : 0` — associação só ocorre quando o ARN do ALB for fornecido
-- No exemplo do lab, `alb_arn` omitido (default `""`) — será wired ao ALB quando o EKS controller provisionar o ingress
-
-**Próximo passo:** `terraform apply` + `destroy` do lab completo (todos os 59 recursos)
-
-#### Correções aplicadas (2026-04-22)
-
-**1. Renomeação do módulo `userpool_customer1` → `cognito_userpool_customer1`**
-- Arquivos: `terraform/examples/lab/main.tf` e `terraform/examples/lab/outputs.tf`
-- Motivo: prefixo `cognito_` torna clara a origem do recurso nos outputs e evita ambiguidade quando outros módulos de tenant forem adicionados.
-
-**2. Fix Cognito IdP — `provider_name` deve ser exatamente `"Google"`**
-- Arquivo: `terraform/src/cognito/userpool/main.tf`
-- O `idp_name` local estava gerando `"Google-Customer1"` para o `provider_name` do `aws_cognito_identity_provider`. O Cognito exige que o `provider_name` para Google seja exatamente `"Google"` (case-sensitive, sem sufixo). Corrigido para usar `"Google"` fixo quando `idp_type == "google"`, mantendo o `idp_name` derivado apenas para referências internas.
-
-**3. Fix EKS — três problemas causando `NodeCreationFailure`** (todos resolvidos)
-- Arquivo principal: `terraform/src/eks/main.tf` e `terraform/src/eks/variables.tf`
-- Diagnóstico confirmado em 2026-04-22 após múltiplos nodegroups `CREATE_FAILED`.
-
-  **Problema A — `http_put_response_hop_limit = 1`:**
-  Com `HttpTokens = required` (IMDSv2) e `hop_limit = 1`, o `nodeadm` (bootstrap AL2023) não conseguia atingir o IMDS endpoint para ler a configuração do cluster. Fix: `http_put_response_hop_limit = 2` no `metadata_options` do launch template.
-
-  **Problema B — `attach_cluster_primary_security_group = false` (default):**
-  O primary security group do EKS (`sg-0cc0849a7409e106f`) só aceita tráfego de si mesmo. Os nodes estavam apenas no node SG (`sg-079625881dee8bab7`) e não conseguiam atingir o private endpoint do EKS na porta 443. Fix: `attach_cluster_primary_security_group = true` no node group — adiciona o primary SG aos nodes, permitindo comunicação bidirecional com o control plane.
-
-  **Problema C — `bootstrap_self_managed_addons = false` (hardcoded no módulo) + sem addons:**
-  O módulo `terraform-aws-modules/eks ~> 21.18` seta `bootstrap_self_managed_addons = false` no recurso `aws_eks_cluster`. Isso faz com que a AWS **não instale** vpc-cni, kube-proxy ou coredns automaticamente. Verificado com `aws eks list-addons --cluster-name wasp` retornando `[]`. Sem vpc-cni DaemonSet, o nó boota e o kubelet sobe (confirmado pelo console EC2 — nodeadm completa em ~1s), mas fica em estado `NetworkUnavailable` e nunca chega a `Ready`. O EKS declara NodeCreationFailure após o timeout. Fix: variável `addons` adicionada ao módulo `src/eks`, com defaults para vpc-cni (`before_compute = true`), kube-proxy e coredns.
-
-- **Nota:** o diagnóstico anterior de "subnet sem rota NAT" estava **incorreto** — `subnet-0022014573966b442` está corretamente associada à route table `wasp-private` com rota `0.0.0.0/0 → nat-0c3b7e00f02634a2a`.
-
-- **Nodegroups órfãos:** foram limpos (verificado — `aws eks list-nodegroups --cluster-name wasp` retorna `[]`).
-
-**4. Fix EKS — `enable_cluster_creator_admin_permissions = false` (default)**
-- Arquivo: `terraform/src/eks/variables.tf` e `terraform/src/eks/main.tf`
-- O módulo não adicionava o caller IAM como admin do cluster. Após `terraform apply`, `kubectl` não funcionaria sem configurar access entries manualmente (equivalente ao que o script `03-configure-access` faz explicitamente). Fix: variável exposta com `default = true`.
-
-**5. Gaps fechados: bash scripts vs Terraform (análise comparativa)**
-- Arquivos alterados: `terraform/src/vpc/main.tf`, `terraform/src/dynamodb/main.tf`, `terraform/src/dynamodb/variables.tf`, `terraform/src/cognito/userpool/outputs.tf`, `terraform/examples/lab/main.tf`, `terraform/examples/lab/outputs.tf`
-
-  | Gap | Fix |
-  |---|---|
-  | `map_public_ip_on_launch` ausente nas subnets públicas | Adicionado em `src/vpc/main.tf` |
-  | DynamoDB sem seed data inicial | `seed_items` variable + `aws_dynamodb_table_item.seed` resource |
-  | Cognito sem output do `app_client_secret` | Output adicionado em `src/cognito/userpool/outputs.tf` |
-  | k8s version: default 1.32 vs 1.34 nos scripts | `cluster_version = "1.34"` explícito em `examples/lab/main.tf` |
-  | Node sizing: default min=1/max=3 vs scripts min=2/max=5 | `node_min_count = 1`, `node_max_count = 5` em `examples/lab/main.tf` |
-
----
-
-#### Estado atual (2026-04-22 — sessão de comparação + gaps)
-
-**Plano de comparação bash vs Terraform executado com sucesso.** Todos os gaps identificados foram fechados.
-
-**O que foi feito:**
-1. Criado `scripts/capture-metadata` — captura 20+ arquivos JSON por fonte (bash/terraform). Suporta `CLUSTER_NAME_OVERRIDE` para clusters com nome diferente do `env.conf`.
-2. Cluster bash `wasp-cool-whale-7zr5` provisionado, metadados capturados em `docs/metadata-bash/` (21 arquivos), cluster destruído.
-3. Cluster Terraform `wasp` provisionado (65 recursos), metadados capturados em `docs/metadata-terraform/` (20 arquivos), cluster destruído.
-4. Diff documentado em `docs/metadata-diff.md` com 7 gaps identificados.
-5. Gaps fechados em `terraform/src/eks/`:
+Script `scripts/capture-metadata` criado para capturar metadados reais de clusters EKS (JSON por recurso em `docs/metadata-<source>/`). Diff completo em `docs/metadata-diff.md`.
 
 | Gap | Fix | Commit |
 |---|---|---|
-| Disco: default AMI ~20GB gp2 vs 80GB gp3 | `block_device_mappings` no launch template (gp3, 80GB, IOPS 3000, throughput 125) | `8acb8fc` |
-| SSO admin role ausente como access entry | Variável `access_entries` no módulo; SSO role wired em `examples/lab/main.tf` | `b967e2c` |
-| `metrics-server` addon ausente | Adicionado ao default de `var.addons` em `variables.tf` | `3de012c` |
+| Disco: default AMI ~20GB gp2 vs 80GB gp3 | `block_device_mappings` (gp3, 80GB, IOPS 3000, throughput 125) | `8acb8fc` |
+| SSO admin role ausente como access entry | Variável `access_entries` no módulo; SSO role em `examples/lab/main.tf` | `b967e2c` |
+| `metrics-server` addon ausente | Adicionado ao default de `var.addons` | `3de012c` |
 | `maxUnavailablePercentage=33` (0 slots com 2 nodes) | `update_config { max_unavailable = 1 }` (absoluto) | `3de012c` |
-| vpc-cni sem IRSA / Pod Identity | IAM role com trust policy `pods.eks.amazonaws.com` + `pod_identity_association` no addon; `eks-pod-identity-agent` adicionado | `b5249b3` |
+| vpc-cni sem Pod Identity | IAM role + `pod_identity_association`; `eks-pod-identity-agent` addon | `b5249b3` |
 
-**Recursos AWS:** todos destruídos. Estado limpo.
+**Gap adiado conscientemente:** `node_min_count = 1` (bash usa 2) — mantido para economizar custo no lab.
 
-**Gaps restantes (conscientemente adiados):**
-- `node_min_count` default = 1 (bash usa 2) — mantido em 1 para economizar custo no lab
+### Gotchas importantes (não repita esses erros)
+
+- **`terraform-aws-modules/eks` v21 usa `name`, `kubernetes_version`, `endpoint_public_access`** — não `cluster_name`, `cluster_version`, `cluster_endpoint_public_access`
+- **`depends_on = [module.vpc]` no módulo EKS causa "count depends on unknown values"** — remover; dependência já implícita pelos argumentos `vpc_id`/`subnet_ids`
+- **`bootstrap_self_managed_addons = false`** (hardcoded no módulo v21) — sem a variável `addons` definida, a AWS não instala vpc-cni/kube-proxy/coredns automaticamente. Nodes ficam em `NetworkUnavailable`.
+- **`http_put_response_hop_limit = 1` com IMDSv2 quebra o bootstrap AL2023** — `nodeadm` não alcança o IMDS. Usar `hop_limit = 2`.
+- **`attach_cluster_primary_security_group = false` (default)** — nodes não conseguem atingir o endpoint privado do EKS na porta 443. Setar `true`.
+- **Cognito `provider_name` para Google deve ser exatamente `"Google"`** — qualquer sufixo causa erro na criação do IdP.
+- **`global_secondary_index.hash_key` deprecated no provider v6** — usar bloco `key_schema { attribute_name, key_type }`.
 
 ---
 
-## Goal
+## Lab local (k3d)
 
-`local/` — versão offline do lab AWS EKS usando k3d, sem dependências de cloud.
-Permite desenvolver e testar os serviços Python localmente sem AWS.
+Completo e validado end-to-end em `local/`. Fluxo de autenticação multi-tenant com Keycloak funcionando.
 
-## Current Progress
+**Serviços modificados vs AWS** (todos com testes — 114 passando):
 
-**Lab local: completo e validado end-to-end.**
-
-| Script | Status |
+| Serviço | Mudança principal |
 |---|---|
-| `env.conf` | ✅ |
-| `bootstrap` | ✅ |
-| `01-create-cluster` | ✅ |
-| `02-install-haproxy-ingress` | ✅ |
-| `03-install-cert-manager` | ✅ |
-| `04-install-istio` | ✅ |
-| `05-deploy-keycloak` | ✅ |
-| `06-deploy-services` | ✅ |
-| `07-configure-istio-auth` | ✅ |
-| `08-deploy-customer2` | ✅ |
-| `destroy` | ✅ |
-| `docs/diferencas-aws.md` | ✅ |
-| `docs/lessons-learned.md` | ✅ |
+| `discovery` | `SQLiteTenantRepository` + `BACKEND=sqlite\|dynamodb` |
+| `platform-frontend` | `IDP_AUTHORIZE_URL` opcional; `identity_provider` omitido quando `idp_name=""` |
+| `callback-handler` | `IDP_TOKEN_URL`, `COOKIE_SECURE`, `COOKIE_DOMAIN` configuráveis |
+| `tenant-frontend` | `IDP_LOGOUT_URL`, `LOGOUT_CALLBACK_URL` configuráveis; logout com IdP redirect |
 
-**Serviços modificados (TDD, AWS intacto):**
+**Gotchas locais:** ver `local/docs/lessons-learned.md`.
 
-| Serviço | Mudança |
-|---|---|
-| `discovery` | `SQLiteTenantRepository` + `BACKEND=sqlite\|dynamodb` (default `dynamodb`) + `SQLITE_SEED_FILE` |
-| `platform-frontend` | `IDP_AUTHORIZE_URL` opcional; `identity_provider` omitido quando `idp_name=""`; `tenant_url` usado as-is quando já tem scheme |
-| `callback-handler` | `IDP_TOKEN_URL` opcional; `COOKIE_SECURE` e `COOKIE_DOMAIN` configuráveis por env var |
-| `tenant-frontend` | `IDP_LOGOUT_URL` e `LOGOUT_CALLBACK_URL` configuráveis; logout com IdP redirect + `/logout/callback` |
-
-**Testes:** 16 (platform-frontend) + 34 (discovery) + 26 (callback-handler) + 38 (tenant-frontend) = 114 passando.
-
-**Fluxo end-to-end validado:**
-
-```
-POST /login (user1@customer1.com)
-  → 302 → Keycloak login page
-  → POST credentials
-  → 302 → /callback?code=...&state=...
-  → 302 → customer1.wasp.local:32080 + set-cookie: session=<JWT>
-  → 200 customer1 com JWT              ← custom:tenant_id=customer1 ✅
-  → 403 customer2 com JWT customer1    ← isolamento Istio ✅
-  → 403 customer2 sem JWT              ← Istio AuthorizationPolicy ✅
-```
-
-## What Worked
-
-- HAProxy Ingress em vez de Nginx (deprecated) — `NodePort 32080`
-- Keycloak oficial `quay.io/keycloak/keycloak:26.1` com `start-dev` + `k3d image import`
-- `frontendUrl` configurado via `PUT /admin/realms/{realm}` com `{"attributes":{"frontendUrl":"..."}}` (não no body de criação)
-- User Profile KC 26: declarar `tenant_id` antes de criar usuários, via `GET/PUT /users/profile`
-- `VERIFY_PROFILE` desabilitado com `enabled:false` (não apenas `defaultAction:false`)
-- `IDP_TOKEN_URL` apontando para service interno do cluster (`keycloak.keycloak.svc.cluster.local:8080`) — evita round-trip pelo HAProxy
-- Ingress catch-all em `istio-ingress` com `defaultBackend → istio-ingressgateway:80` — conecta HAProxy ao Istio
-- `emptyDir` em `/data` no discovery para o SQLite criar o arquivo `.db`
-- `DISCOVERY_URL` in-cluster (`discovery.discovery.svc.cluster.local:8000`) — DNS do `/etc/hosts` não propaga para pods
-- `COOKIE_SECURE=false` + `COOKIE_DOMAIN=.wasp.local` — cookie enviado em HTTP com domínio correto
-- **namespace `shared` para recursos regionais compartilhados** — `httpbin.wasp.local` movido para `shared` (sem `AuthorizationPolicy`); httpbin permanece nos namespaces de tenant para testes de isolamento via `/httpbin/get`
-
-### Design Decisions (arquitetura)
-
-| Decisão | Implementação |
-|---------|---------------|
-| **Tenant por `custom:tenant_id`** | Protocol Mapper no Keycloak injeta claim `custom:tenant_id` no token. Isolamento via Istio `AuthorizationPolicy` que valida `request.auth.claims[custom:tenant_id] == tenant_id`. |
-| **Naming de secrets multi-tenant** | `IDP_CLIENT_SECRET_<TENANT_ID>` (ex: `IDP_CLIENT_SECRET_CUSTOMER1`). Permite lookup dinâmico no `callback-handler` sem hardcode. |
-| **Backend discovery switchável** | `BACKEND=sqlite\|dynamodb` — SQLite para local, DynamoDB para AWS. Default `dynamodb` para compatibilidade. |
-| **Claims via User Profile** | `tenant_id` declarado no KC 26 User Profile antes de criar usuários. KC descarta atributos não declarados silenciosamente. |
-| **`env.secrets` como fonte única** | Secrets geradas em runtime (`KEYCLOAK_CLIENT_SECRET`, `STATE_JWT_SECRET`) persistidas em `env.secrets` para sessões futuras não regenerarem valores inconsistentes. |
-
-## What Didn't Work / Gotchas
-
-Os gotchas detalhados com soluções estão em `local/docs/lessons-learned.md`. Resumo dos não óbvios:
-
-- **`rollout restart` necessário quando Secret/ConfigMap muda** — sem troca de imagem, pods não remontam env vars automaticamente. `kubectl rollout restart deployment/<name>`.
-- **`docker build` manual quebra o CSS compartilhado** — `app/static/shared` é symlink para `../../../../design/shared`. Docker não segue symlinks fora do build context. Sempre substituir o symlink por cópia real antes do build e restaurar depois (ver `_inject_shared`/`_restore_shared` em `06-deploy-services`). Nunca rodar `docker build` diretamente nos serviços de frontend.
-- **Subagente sem permissão bash** — subagentes via Agent tool não herdam permissões da sessão principal. Reiniciar o Claude Code ou rodar scripts manualmente.
-- **`--skip-schema-validation` inválido em Helm v3.12** — causa `Error: unknown flag`; removida do `04-install-istio`.
-- **CORS regex `\.` em YAML dentro de `<<EOF` bash** — `\\.` vira `\.`, escape inválido em YAML. Usar `[.]` no lugar de `\.` nos scripts.
-- **Endpoint do discovery é `/tenant?domain=<email_domain>`** — não `/tenants` (404).
+---
 
 ## Backlog
 
-### P1 — Quick wins
+### P1
 
-- [x] **Script de seleção de MCPs por sessão**: `mcp-select` em `~/git/linux/scripts/bin/`. Lê `.mcp.json` do CWD, apresenta menu fzf multi-select com os servers atuais, e reescreve os campos `disabled` no arquivo. Uso: `mcp-select` (antes de invocar o claude).
-- [ ] **Script `add-tenant` para lab local** (k3d): análogo ao `configure-idps` AWS, mas para Keycloak — adiciona client + usuário + registro SQLite para um novo tenant sem recriar tudo. Hoje o `08-deploy-customer2` faz isso de forma hardcoded; tornar genérico quando necessário adicionar customer3+.
-- [ ] **Decode JWT na página de teste**: `test.html` exibir claims decodificados do JWT (header + payload) ao lado do token bruto.
-- [ ] **Screenshots para documentação**: tirar prints das telas principais (login, redirecionamento, página do tenant, isolamento 403) para enriquecer `docs/`.
+- [ ] **Parametrizar redirect param no logout** (`tenant-frontend`): Keycloak usa `post_logout_redirect_uri`, Cognito usa `logout_uri`. Adicionar env var `IDP_LOGOUT_REDIRECT_PARAM`.
+- [ ] **Script `add-tenant` para lab local** (k3d): análogo ao `configure-idps` AWS, genérico para customer3+.
+- [ ] **Decode JWT na página de teste**: `test.html` exibir claims decodificados ao lado do token bruto.
 
-### P1 — Compatibilidade Cognito (logout)
+### P2
 
-- [ ] **Parametrizar nome do param de redirect no logout** (`tenant-frontend`): o código usa `post_logout_redirect_uri` (Keycloak/OIDC). O Cognito usa `logout_uri`. Quando ativar `IDP_LOGOUT_URL` nos scripts AWS, será necessário adicionar uma env var `IDP_LOGOUT_REDIRECT_PARAM` (default `post_logout_redirect_uri`; Cognito usa `logout_uri`) e remover `id_token_hint` do fluxo Cognito.
+- [ ] **Redirect ao expirar token**: Istio retorna 403 puro — `tenant-frontend` deve detectar expiração (`exp`) e redirecionar para `/login`.
+- [ ] **Network policy isolando namespaces**: complementar isolamento Istio com `NetworkPolicy` K8s.
+- [ ] **Métricas com OpenTelemetry**: instrumentar serviços Python (latência, erros, requisições por tenant).
+- [ ] **Teste e2e local**: Playwright contra k3d cobrindo o fluxo de login completo.
+- [ ] **Health check dedicado `/healthz`**: separar tráfego health check (ALB) do tráfego real.
 
-### P2 — Melhorias importantes
+### P3
 
-- [ ] **Nomes estáveis para recursos de rede**: avaliar usar `cluster_name` fixo em `env.conf` (ex: `wasp-eks-lab`) para VPC/subnets com nome estável entre sessões.
-- [ ] **Health check dedicado `/healthz`**: separar tráfego de health check (ALB) do tráfego real; avaliar se expõe risco de segurança.
-- [ ] **Redirect ao expirar token**: Istio retorna 403 puro quando JWT expira. O `tenant-frontend` deve detectar expiração (claim `exp`) e redirecionar para `/login`. Alternativa: configurar Istio para redirecionar em vez de 403.
-- [ ] **Network policy isolando namespaces**: complementar o isolamento do Istio com `NetworkPolicy` K8s bloqueando tráfego direto entre namespaces de tenants.
-- [ ] **Diagrama do Lab EKS**: atualizar `docs/` com diagrama de arquitetura (fluxo de tráfego, componentes, namespaces).
-- [ ] **Métricas com OpenTelemetry**: instrumentar os serviços Python para emitir métricas via OTEL (latência, erros, requisições por tenant).
-- [ ] **Fitness function / Business metrics**: endpoint de saúde semântica do cluster (ex: `/healthz/business`) com métricas de tenants ativos, autenticações bem-sucedidas, disponível localmente com indicador visual.
-- [ ] **Métricas do cluster**: Prometheus + Grafana ou similar para observabilidade de infra (CPU, memória, pods por namespace).
-- [ ] **Teste de interface local (e2e)**: testes automatizados de browser para o fluxo de login completo (Playwright ou similar), rodando contra k3d.
-
-### P3 — Exploração / futuro
-
-- [ ] **CDN para assets frontend**: CSS, logo, JS duplicados entre serviços. Avaliar S3+CloudFront ou nginx estático compartilhado.
 - [ ] **Cilium CNI em ENI mode**: provisionar EKS com Cilium em vez de AWS VPC CNI.
 - [ ] **Istio Ambient Mesh**: implementar e verificar limitações.
-- [ ] **Remover `COGNITO_CLIENT_ID` órfão dos ConfigMaps** (AWS): serviços não usam essa variável (vem do discovery via state JWT).
-- [ ] **SSM Parameter Store**: migrar secrets de `env.secrets` para SSM (alternativa gratuita ao Secrets Manager).
-- [ ] **waspctl network proxy**: comando para provisionar cluster e integrar ao Global Accelerator.
-- [ ] **Resource quotas por namespace**: limitar CPU/memória por tenant para evitar noisy neighbor.
+- [ ] **SSM Parameter Store**: migrar secrets de `env.secrets` para SSM.
+- [ ] **Resource quotas por namespace**: limitar CPU/memória por tenant (noisy neighbor).
+- [ ] **CSPM/CIEM/CNAPP**: avaliar Prowler, AWS Security Hub ou solução unificada.
 - [ ] **Proteger repositório GitHub**: branch protection rules, required reviews, signed commits.
-- [ ] **Penetration test**: avaliar OWASP ZAP ou similar contra o lab local (k3d) antes de rodar contra AWS.
-- [ ] **CSPM** (Cloud Security Posture Management): avaliar ferramenta para detectar misconfigurações na conta AWS (ex: Prowler, AWS Security Hub).
-- [ ] **CIEM** (Cloud Infrastructure Entitlement Management): auditar permissões IAM excessivas; avaliar ferramentas dedicadas.
-- [ ] **CNAPP** (Cloud Native Application Protection Platform): avaliar solução unificada que cubra CSPM + CIEM + runtime security (ex: Wiz, Lacework).
-- [ ] **Simulação waspctl com IA**: interação conversacional simulando comandos `waspctl` com respostas simuladas, para exercitar conceitos e documentar o fluxo esperado da CLI.
 
+---
 
-## Key Files
+## Referências
 
-| Arquivo | Relevância |
+| Documento | Conteúdo |
 |---|---|
-| `local/scripts/env.conf` | Config global do lab local (domínio, portas, credenciais Keycloak) |
-| `local/scripts/env.secrets` | Gerado em runtime — `KEYCLOAK_CLIENT_SECRET`, `STATE_JWT_SECRET` |
-| `local/docs/diferencas-aws.md` | Mapa completo de substituições locais |
-| `local/docs/lessons-learned.md` | Todos os problemas encontrados e soluções durante execução |
-| `scripts/13-deploy-services` | Referência original para o `06-deploy-services` local |
-| `scripts/14-configure-istio-auth` | Referência original para o `07-configure-istio-auth` local |
-| `CLAUDE.md` | Contexto do lab AWS (domínios, credenciais, regras de TDD) |
+| `docs/metadata-diff.md` | Diff completo bash vs Terraform (campos críticos EKS) |
+| `local/docs/lessons-learned.md` | Gotchas do lab local k3d |
+| `docs/decisoes-tecnicas.md` | Decisões de design e trade-offs |
+| `CLAUDE.md` | Contexto operacional (domínios, credenciais, regras TDD) |
 
-## Context
-
-- Diretório local: `local/` (junto aos serviços, coexiste com `scripts/`)
-- Domínio local: `wasp.local` (porta `32080` para acesso externo)
-- `/etc/hosts`: `127.0.0.1` para `wasp.local`, `auth.wasp.local`, `discovery.wasp.local`, `idp.wasp.local`, `customer1.wasp.local`, `customer2.wasp.local`
-- customer1 e customer2 usam o mesmo client Keycloak (`wasp-platform`) — isolamento via `custom:tenant_id`
-- Regra do projeto: TDD — testes antes de qualquer alteração nos serviços
-
-## Referências externas
-
-- [smsilva.github.io/aws-saas-platform](https://smsilva.github.io/aws-saas-platform) — documentação publicada do projeto
-- [Building a Multi-Tenant SaaS Solution Using Amazon EKS](https://aws.amazon.com/pt/blogs/apn/building-a-multi-tenant-saas-solution-using-amazon-eks) — referência de arquitetura multi-tenant
-- [Operating a multi-regional stateless application using Amazon EKS](https://aws.amazon.com/pt/blogs/containers/operating-a-multi-regional-stateless-application-using-amazon-eks) — referência para expansão multi-região
+- [Building a Multi-Tenant SaaS Solution Using Amazon EKS](https://aws.amazon.com/pt/blogs/apn/building-a-multi-tenant-saas-solution-using-amazon-eks)
+- [Operating a multi-regional stateless application using Amazon EKS](https://aws.amazon.com/pt/blogs/containers/operating-a-multi-regional-stateless-application-using-amazon-eks)
