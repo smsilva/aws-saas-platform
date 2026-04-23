@@ -214,6 +214,20 @@ def test_test_page_has_openDrawer_function(api_client, authenticated_client):
     assert "closeDrawer" in js.text
 
 
+def test_test_page_has_jwt_decode_panel(authenticated_client):
+    """JWT decode panel must be rendered on the test page."""
+    response = authenticated_client.get("/test")
+    assert response.status_code == 200
+    assert 'id="jwt-decode-panel"' in response.text
+
+
+def test_test_ui_js_has_decode_function(api_client):
+    """decodeJwtPayload must be defined in test-ui.js for client-side claim display."""
+    response = api_client.get("/static/test-ui.js")
+    assert response.status_code == 200
+    assert "decodeJwtPayload" in response.text
+
+
 def test_test_page_run_buttons_are_client_side(authenticated_client):
     """Run buttons must call runSingle() in JS, not /test/run server endpoint."""
     response = authenticated_client.get("/test")

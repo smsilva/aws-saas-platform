@@ -28,6 +28,32 @@
     return hljs.highlight(cmd, { language: 'bash' }).value;
   }
 
+  function decodeJwtPayload(token) {
+    try {
+      const part = (token || '').split('.')[1];
+      if (!part) return null;
+      const b64 = part.replace(/-/g, '+').replace(/_/g, '/');
+      const padding = '='.repeat((4 - b64.length % 4) % 4);
+      return JSON.parse(atob(b64 + padding));
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function renderJwtPanel(containerId, token) {
+    const el = document.getElementById(containerId);
+    if (!el) return;
+    const payload = token ? decodeJwtPayload(token) : null;
+    if (!payload) {
+      el.innerHTML = '<p style="color:var(--color-secondary);font-size:13px;margin:0">No session token.</p>';
+      return;
+    }
+    el.innerHTML =
+      '<div class="result-code-wrap">'
+      + '<pre class="result-code-pre">' + highlightJson(JSON.stringify(payload, null, 2)) + '</pre>'
+      + '</div>';
+  }
+
   function _fallbackCopy(text, onSuccess) {
     const ta = document.createElement('textarea');
     ta.value = text;
@@ -316,6 +342,8 @@
     openDrawer:        openDrawer,
     closeDrawer:       closeDrawer,
     toggleDrawerWrap:  toggleDrawerWrap,
+    decodeJwtPayload:  decodeJwtPayload,
+    renderJwtPanel:    renderJwtPanel,
   };
 
   // ── Init ─────────────────────────────────────────────────────────────────────
@@ -339,6 +367,8 @@
     window.copyResult         = copyResult;
     window.escapeHtml         = escapeHtml;
     window.highlightShell     = highlightShell;
+
+    renderJwtPanel('jwt-decode-panel', _jwtToken);
 
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeDrawer(); });
   };
