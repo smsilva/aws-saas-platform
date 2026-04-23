@@ -60,7 +60,7 @@ Completo e validado end-to-end em `local/`. Fluxo de autenticação multi-tenant
 | `discovery` | `SQLiteTenantRepository` + `BACKEND=sqlite\|dynamodb` |
 | `platform-frontend` | `IDP_AUTHORIZE_URL` opcional; `identity_provider` omitido quando `idp_name=""` |
 | `callback-handler` | `IDP_TOKEN_URL`, `COOKIE_SECURE`, `COOKIE_DOMAIN` configuráveis |
-| `tenant-frontend` | `IDP_LOGOUT_URL`, `LOGOUT_CALLBACK_URL` configuráveis; logout com IdP redirect |
+| `tenant-frontend` | `IDP_LOGOUT_URL`, `LOGOUT_CALLBACK_URL`, `IDP_LOGOUT_REDIRECT_PARAM` configuráveis; logout com IdP redirect |
 
 **Gotchas locais:** ver `local/docs/lessons-learned.md`.
 
@@ -70,7 +70,6 @@ Completo e validado end-to-end em `local/`. Fluxo de autenticação multi-tenant
 
 ### P1
 
-- [ ] **Parametrizar redirect param no logout** (`tenant-frontend`): Keycloak usa `post_logout_redirect_uri`, Cognito usa `logout_uri`. Adicionar env var `IDP_LOGOUT_REDIRECT_PARAM`.
 - [ ] **Script `add-tenant` para lab local** (k3d): análogo ao `configure-idps` AWS, genérico para customer3+.
 - [ ] **Decode JWT na página de teste**: `test.html` exibir claims decodificados ao lado do token bruto.
 
