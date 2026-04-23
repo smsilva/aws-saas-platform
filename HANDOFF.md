@@ -261,62 +261,30 @@ Usa `terraform-aws-modules/eks ~> 21.18` internamente (complexidade de IAM/OIDC 
 
 ---
 
-#### Estado atual (2026-04-22 fim de sessão)
+#### Estado atual (2026-04-22 — sessão de comparação + gaps)
 
-**Todos os recursos AWS foram destruídos.** Estado limpo para recomeço.
+**Plano de comparação bash vs Terraform executado com sucesso.** Todos os gaps identificados foram fechados.
 
----
+**O que foi feito:**
+1. Criado `scripts/capture-metadata` — captura 20+ arquivos JSON por fonte (bash/terraform). Suporta `CLUSTER_NAME_OVERRIDE` para clusters com nome diferente do `env.conf`.
+2. Cluster bash `wasp-cool-whale-7zr5` provisionado, metadados capturados em `docs/metadata-bash/` (21 arquivos), cluster destruído.
+3. Cluster Terraform `wasp` provisionado (65 recursos), metadados capturados em `docs/metadata-terraform/` (20 arquivos), cluster destruído.
+4. Diff documentado em `docs/metadata-diff.md` com 7 gaps identificados.
+5. Gaps fechados em `terraform/src/eks/`:
 
-#### Plano para próxima sessão — comparação script vs Terraform via metadados reais
+| Gap | Fix | Commit |
+|---|---|---|
+| Disco: default AMI ~20GB gp2 vs 80GB gp3 | `block_device_mappings` no launch template (gp3, 80GB, IOPS 3000, throughput 125) | `8acb8fc` |
+| SSO admin role ausente como access entry | Variável `access_entries` no módulo; SSO role wired em `examples/lab/main.tf` | `b967e2c` |
+| `metrics-server` addon ausente | Adicionado ao default de `var.addons` em `variables.tf` | `3de012c` |
+| `maxUnavailablePercentage=33` (0 slots com 2 nodes) | `update_config { max_unavailable = 1 }` (absoluto) | `3de012c` |
+| vpc-cni sem IRSA / Pod Identity | IAM role com trust policy `pods.eks.amazonaws.com` + `pod_identity_association` no addon; `eks-pod-identity-agent` adicionado | `b5249b3` |
 
-**Objetivo:** eliminar suposições — capturar o que os scripts bash criam de facto na AWS, salvar os metadados, criar via Terraform, comparar diferenças ponto a ponto.
+**Recursos AWS:** todos destruídos. Estado limpo.
 
-**Motivação:** após 3 falhas de NodeCreationFailure descobrimos que havia 3 causas simultâneas (hop_limit, primary SG, vpc-cni addons). Uma abordagem baseada em metadados reais teria revelado tudo de uma vez, sem iteração às cegas.
-
-**Estratégia:**
-
-```
-1. Provisionar com bash scripts (02-create-cluster + 03-configure-access)
-2. Capturar metadados reais → docs/metadata-scripts/
-3. Destruir o cluster bash
-4. Provisionar com terraform apply
-5. Capturar metadados reais → docs/metadata-terraform/
-6. Diff entre os dois → docs/metadata-diff.md
-7. Fechar gaps no código Terraform
-```
-
-**Recursos a capturar (por recurso AWS):**
-
-| Recurso | Comando de captura |
-|---|---|
-| Cluster EKS | `aws eks describe-cluster --name <name>` |
-| Node group | `aws eks describe-nodegroup --cluster-name <name> --nodegroup-name <ng>` |
-| Launch template (versão usada) | `aws ec2 describe-launch-template-versions --launch-template-id <id> --versions <v>` |
-| Addons instalados | `aws eks list-addons --cluster-name <name>` + `describe-addon` por addon |
-| Access entries | `aws eks list-access-entries --cluster-name <name>` + `describe-access-entry` por entry |
-| IAM role do cluster | `aws iam get-role --role-name <name>` + `list-attached-role-policies` |
-| IAM role do node group | `aws iam get-role --role-name <name>` + `list-attached-role-policies` |
-| Security groups (cluster + node) | `aws ec2 describe-security-groups --group-ids <id>` (regras inbound/outbound) |
-| OIDC Provider | `aws iam get-open-id-connect-provider --open-id-connect-provider-arn <arn>` |
-
-**Campos críticos a comparar (lições aprendidas):**
-- `bootstrapSelfManagedAddons` no cluster
-- `accessConfig.authenticationMode`
-- `accessConfig.bootstrapClusterCreatorAdminPermissions`
-- `launchTemplate.version` + conteúdo (`MetadataOptions`, `SecurityGroupIds`)
-- lista de addons e suas versões
-- lista de access entries e políticas associadas
-- políticas IAM anexadas ao node role
-
-**Próximos passos concretos:**
-1. Commit de todos os arquivos modificados (`git diff --stat HEAD` mostra 11 arquivos)
-2. Criar script `scripts/capture-metadata` que executa todos os comandos acima e salva em `docs/metadata-<source>/` (um arquivo JSON por recurso)
-3. Provisionar com bash (`scripts/02-create-cluster` + `scripts/03-configure-access`)
-4. Rodar `scripts/capture-metadata bash` → `docs/metadata-scripts/`
-5. Destruir cluster bash
-6. Provisionar com Terraform (`terraform apply`)
-7. Rodar `scripts/capture-metadata terraform` → `docs/metadata-terraform/`
-8. Comparar e documentar em `docs/metadata-diff.md`
+**Gaps restantes (conscientemente adiados):**
+- `node_min_count` default = 1 (bash usa 2) — mantido em 1 para economizar custo no lab
+- IRSA para vpc-cni substituído por Pod Identity (solução mais moderna, WAF-alinhada)
 
 ---
 
