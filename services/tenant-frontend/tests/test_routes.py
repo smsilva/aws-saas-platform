@@ -374,3 +374,11 @@ def test_logout_callback_redirects_to_platform_url(api_client):
     response = api_client.get("/logout/callback")
     assert response.status_code == 302
     assert "wasp.silvios.me" in response.headers["location"]
+
+
+def test_logout_clears_session_when_idp_logout_url_not_configured(api_client):
+    # IDP_LOGOUT_URL and LOGOUT_CALLBACK_URL are "" by default — hits the fallback branch
+    response = api_client.get("/logout")
+    assert response.status_code == 302
+    set_cookie = response.headers.get("set-cookie", "")
+    assert "session=" in set_cookie

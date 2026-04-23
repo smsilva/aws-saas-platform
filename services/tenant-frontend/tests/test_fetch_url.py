@@ -55,3 +55,14 @@ async def test_fetch_url_returns_error_on_timeout(httpx_mock: HTTPXMock):
     assert result["status_code"] is None
     assert result["result_json"] is None
     assert "timed out" in result["error"].lower() or "timeout" in result["error"].lower()
+
+
+@pytest.mark.anyio
+async def test_fetch_url_returns_none_result_json_when_body_is_not_json(httpx_mock: HTTPXMock):
+    httpx_mock.add_response(url=TARGET_URL, status_code=200, text="not-json-content")
+
+    result = await fetch_url(TARGET_URL)
+
+    assert result["status_code"] == 200
+    assert result["result_json"] is None
+    assert result["error"] is None

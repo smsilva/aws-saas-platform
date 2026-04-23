@@ -2,10 +2,11 @@ import time
 from unittest.mock import patch, MagicMock
 
 import jwt
+import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app, get_cognito_client
-from tests.conftest import SAMPLE_STATE, SECRET
+from tests.conftest import SAMPLE_STATE, SAMPLE_ID_TOKEN, SECRET
 
 
 def test_health_check_returns_200(api_client):
@@ -231,3 +232,52 @@ def test_callback_cookie_uses_default_domain_when_env_not_set(api_client, mock_c
 
     cookie = response.headers.get("set-cookie", "")
     assert "Domain=.wasp.silvios.me" in cookie
+
+
+def test_get_cognito_client_raises_not_implemented_error():
+    from app.main import get_cognito_client
+    with pytest.raises(NotImplementedError):
+        get_cognito_client()
+
+
+def test_extract_tenant_id_returns_none_for_invalid_token():
+    from app.main import _extract_tenant_id
+    assert _extract_tenant_id("not.a.valid.jwt") is None
+
+
+def test_cognito_exchange_raises_on_non_200_response():
+    from app.cognito import CognitoClient, CognitoTokenExchangeError
+
+    mock_response = MagicMock()
+    mock_response.status_code = 400
+    mock_response.text = "invalid_grant"
+
+    client = CognitoClient(
+        domain="idp.wasp.silvios.me",
+        client_id="abc123",
+        client_secret="secret",
+        callback_url="https://auth.wasp.silvios.me/callback",
+    )
+
+    with patch("app.cognito.httpx.post", return_value=mock_response):
+        with pytest.raises(CognitoTokenExchangeError, match="400"):
+            client.exchange_code_for_tokens("bad-code")
+
+
+def test_callback_without_dependency_override_builds_cognito_client(monkeypatch):
+    monkeypatch.setenv("IDP_CLIENT_SECRET_CUSTOMER1", "supersecret")
+    app.dependency_overrides.clear()
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "id_token": SAMPLE_ID_TOKEN,
+        "access_token": "access",
+        "refresh_token": "refresh",
+    }
+
+    with patch("app.cognito.httpx.post", return_value=mock_response):
+        client = TestClient(app, follow_redirects=False)
+        response = client.get(f"/callback?code=valid-code&state={SAMPLE_STATE}")
+
+    assert response.status_code == 302
