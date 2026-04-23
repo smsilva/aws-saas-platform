@@ -68,11 +68,6 @@ Completo e validado end-to-end em `local/`. Fluxo de autenticação multi-tenant
 
 ## Backlog
 
-### P1
-
-- [ ] **Script `add-tenant` para lab local** (k3d): análogo ao `configure-idps` AWS, genérico para customer3+.
-- [ ] **Decode JWT na página de teste**: `test.html` exibir claims decodificados ao lado do token bruto.
-
 ### P2
 
 - [ ] **Redirect ao expirar token**: Istio retorna 403 puro — `tenant-frontend` deve detectar expiração (`exp`) e redirecionar para `/login`.
