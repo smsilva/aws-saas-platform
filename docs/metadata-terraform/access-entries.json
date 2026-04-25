@@ -1,7 +1,0 @@
-{
-    "accessEntries": [
-        "arn:aws:iam::221047292361:role/aws-service-role/eks.amazonaws.com/AWSServiceRoleForAmazonEKS",
-        "arn:aws:iam::221047292361:role/default-eks-node-group-20260422232353803100000007",
-        "arn:aws:iam::221047292361:user/silvios"
-    ]
-}
