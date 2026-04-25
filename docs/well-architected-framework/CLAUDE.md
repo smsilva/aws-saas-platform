@@ -1,13 +1,13 @@
-# well-architected-framework/ — Roadmap WAF
+# well-architected-framework/ — WAF Roadmap
 
-## O que vive aqui
+## What lives here
 
-Changes de melhoria organizadas pelos 6 pilares do AWS Well-Architected Framework.
-Cada change tem `proposal.md`, `tasks.md` e `design.md`.
+Improvement changes organized by the 6 AWS Well-Architected Framework pillars.
+Each change has `proposal.md`, `tasks.md`, and `design.md`.
 
-## Pilares
+## Pillars
 
-| Pilar | Diretório | Changes ativas |
+| Pillar | Directory | Active changes |
 |---|---|---|
 | 🔐 Security | `security/changes/` | 7 |
 | 🏛 Reliability | `reliability/changes/` | 3 |
@@ -16,23 +16,23 @@ Cada change tem `proposal.md`, `tasks.md` e `design.md`.
 | 🔧 Operations | `operations/changes/` | 4 |
 | 🌱 Sustainability | `sustainability/changes/` | 1 |
 
-## Como propor uma change
+## How to propose a change
 
-1. Identificar o pilar pela natureza da mudança
-2. Verificar `<pilar>/changes/` — a change pode já existir
-3. Verificar `<pilar>/changes/archive/` — pode ter sido tentado antes
-4. Criar `<pilar>/changes/<nome-kebab-case>/proposal.md` e `tasks.md`
-5. Consultar `index.md` para verificar dependências (ex: P1 requer P0)
+1. Identify the pillar by the nature of the change
+2. Check `<pillar>/changes/` — the change may already exist
+3. Check `<pillar>/changes/archive/` — it may have been attempted before
+4. Create `<pillar>/changes/<kebab-case-name>/proposal.md` and `tasks.md`
+5. Consult `index.md` to verify dependencies (e.g., P1 requires P0)
 
-## Antes de propor
+## Before proposing
 
-- `index.md` — ordem de execução e dependências entre as 17 changes
-- Changes P0 e P1 bloqueiam as demais; verificar status antes de propor P2+
-- Overlap com cost: verificar `cost/changes/tagging-savings-plans/` se envolver tags
+- `index.md` — execution order and dependencies between the 17 changes
+- P0 and P1 changes block others; verify status before proposing P2+
+- Cost overlap: check `cost/changes/tagging-savings-plans/` if tags are involved
 
-## Playbook de fechamento de change
+## Change closing playbook
 
-1. Mover conhecimento permanente para `docs/arquitetura/` ou `docs/servicos/`
-2. Atualizar `index.md` se a ordem de execução mudar
-3. `mv <pilar>/changes/<nome> <pilar>/changes/archive/YYYY-MM-<nome>`
-4. Change cancelada: sufixo `-cancelled`; nota em `proposal.md` com motivo
+1. Move permanent knowledge to `docs/arquitetura/` or `docs/servicos/`
+2. Update `index.md` if the execution order changes
+3. `mv <pillar>/changes/<name> <pillar>/changes/archive/YYYY-MM-<name>`
+4. Cancelled change: `-cancelled` suffix; note in `proposal.md` with reason

@@ -1,32 +1,32 @@
-# Decisões técnicas — backlog e trade-offs
+# Technical decisions — backlog and trade-offs
 
-Registro de decisões de design tomadas durante o desenvolvimento do lab, com o raciocínio por trás de cada escolha e o que foi adiado conscientemente.
+Record of design decisions made during lab development, with the reasoning behind each choice and what was consciously deferred.
 
 ---
 
-## Referências externas
+## External references
 
-Artigos que serviram de base para a arquitetura deste lab:
+Articles that informed the architecture of this lab:
 
-- [Building a Multi-Tenant SaaS Solution Using Amazon EKS](https://aws.amazon.com/pt/blogs/apn/building-a-multi-tenant-saas-solution-using-amazon-eks/) — Toby Buckley e Ranjith Raman (AWS APN Blog)
+- [Building a Multi-Tenant SaaS Solution Using Amazon EKS](https://aws.amazon.com/pt/blogs/apn/building-a-multi-tenant-saas-solution-using-amazon-eks/) — Toby Buckley and Ranjith Raman (AWS APN Blog)
 - [Operating a multi-regional stateless application using Amazon EKS](https://aws.amazon.com/pt/blogs/containers/operating-a-multi-regional-stateless-application-using-amazon-eks/) — Re Alvarez-Parmar (AWS Containers Blog)
-- [Amazon EKS Blueprints for Terraform](https://aws-ia.github.io/terraform-aws-eks-blueprints/) — módulos Terraform de referência para EKS
+- [Amazon EKS Blueprints for Terraform](https://aws-ia.github.io/terraform-aws-eks-blueprints/) — reference Terraform modules for EKS
 
 ---
 
-## Roadmap de fases e waspctl
+## Phase roadmap and waspctl
 
-**Status:** Fase 1 em execução; Fases 2 e 3 planejadas
+**Status:** Phase 1 in progress; Phases 2 and 3 planned
 
-Este lab implementa manualmente a infraestrutura da Fase 1. Em paralelo, o projeto [`waspctl`](https://github.com/silviosilva/waspctl) está sendo desenvolvido como CLI para automatizar o provisionamento dessa mesma topologia.
+This lab manually implements Phase 1 infrastructure. In parallel, the [`waspctl`](https://github.com/silviosilva/waspctl) project is being developed as a CLI to automate provisioning of this same topology.
 
-| Fase | Descrição | Estado |
+| Phase | Description | State |
 |---|---|---|
-| 1 | Cluster único + Auth Service simples (este lab) | em execução |
-| 2 | Platform-cluster separado dos customer-clusters | planejado |
-| 3 | Platform-clusters regionais + Global Accelerator + DynamoDB Global Table | planejado |
+| 1 | Single cluster + simple Auth Service (this lab) | in progress |
+| 2 | Platform-cluster separate from customer-clusters | planned |
+| 3 | Regional platform-clusters + Global Accelerator + DynamoDB Global Table | planned |
 
-O `waspctl` seguirá a mesma progressão de fases, abstraindo os scripts manuais em comandos declarativos:
+`waspctl` will follow the same phase progression, abstracting manual scripts into declarative commands:
 
 ```bash
 waspctl sso login
@@ -74,75 +74,75 @@ waspctl tenant endpoint add \
 
 ---
 
-## ALB Cognito native integration vs Auth Service customizado
+## ALB native Cognito integration vs custom Auth Service
 
-**Status:** decisão tomada; Auth Service customizado mantido por flexibilidade
+**Status:** decision made; custom Auth Service retained for flexibility
 
-### Contexto
+### Context
 
-O ALB tem integração nativa com Amazon Cognito: o próprio ALB executa o fluxo OIDC/OAuth e injeta os claims do JWT em headers HTTP antes de encaminhar a requisição ao backend. Isso eliminaria a necessidade do `platform-frontend` e do `callback-handler` como serviços separados.
+The ALB has native Cognito integration: the ALB itself executes the OIDC/OAuth flow and injects JWT claims as HTTP headers before forwarding the request to the backend. This would eliminate the need for `platform-frontend` and `callback-handler` as separate services.
 
-### Opções avaliadas
+### Options evaluated
 
-**A — ALB Cognito native (OIDC authenticate action)**
-O ALB faz o redirect para o Cognito Hosted UI, troca o authorization code por token e injeta `X-Amzn-Oidc-Identity`, `X-Amzn-Oidc-Access-Token` e `X-Amzn-Oidc-Data` (JWT com claims) nos headers. Zero código de autenticação no backend.
+**A — ALB native Cognito (OIDC authenticate action)**
+The ALB redirects to the Cognito Hosted UI, exchanges the authorization code for a token, and injects `X-Amzn-Oidc-Identity`, `X-Amzn-Oidc-Access-Token`, and `X-Amzn-Oidc-Data` (JWT with claims) into headers. Zero authentication code in the backend.
 
-**B — Auth Service customizado (solução atual)**
-`platform-frontend` recebe o e-mail, resolve o tenant via discovery, constrói a URL de autorização para o Cognito IdP correto e redireciona. `callback-handler` recebe o código, troca por token, valida o tenant e seta o cookie de sessão.
+**B — Custom Auth Service (current solution)**
+`platform-frontend` receives the email, resolves the tenant via discovery, builds the authorization URL for the correct Cognito IdP, and redirects. `callback-handler` receives the code, exchanges it for a token, validates the tenant, and sets the session cookie.
 
-### Decisão: Auth Service customizado (Opção B)
+### Decision: Custom Auth Service (Option B)
 
-A integração nativa do ALB não oferece controle sobre a seleção dinâmica de IdP por tenant — o ALB autentica contra um único Cognito App Client fixo na listener rule. O Auth Service customizado permite:
+The ALB native integration does not offer control over dynamic per-tenant IdP selection — the ALB authenticates against a single fixed Cognito App Client in the listener rule. The custom Auth Service allows:
 
-- Resolver o tenant pelo domínio do e-mail **antes** de iniciar o fluxo OAuth
-- Construir a URL de autorização com o `identity_provider` correto para o tenant
-- Validar que o domínio autenticado pertence ao tenant esperado (proteção anti-hijacking)
-- Injetar informações de tenant no state JWT para correlação no callback
+- Resolving the tenant by email domain **before** initiating the OAuth flow
+- Building the authorization URL with the correct `identity_provider` for the tenant
+- Validating that the authenticated domain belongs to the expected tenant (anti-hijacking protection)
+- Injecting tenant information into the state JWT for correlation in the callback
 
-A integração nativa do ALB é adequada para casos onde todos os usuários autenticam pelo mesmo IdP. Para multi-tenant com IdPs distintos por tenant, o Auth Service customizado é necessário.
+The ALB native integration is appropriate for cases where all users authenticate through the same IdP. For multi-tenant with distinct IdPs per tenant, the custom Auth Service is necessary.
 
 ---
 
 ## API auth options for external clients
 
-**Status:** pendente de decisão
+**Status:** pending decision
 
-Como autenticar chamadas de `curl`/scripts à API sem passar pelo browser SSO flow.
+How to authenticate `curl`/script calls to the API without going through the browser SSO flow.
 
-### Opções avaliadas
+### Options evaluated
 
 **A — Service account token (Kubernetes Secret)**
-Criar um `ServiceAccount` dedicado com permissões limitadas e usar o token gerado automaticamente. Simples, sem dependência de AWS, mas token de longa duração (sem expiração por padrão antes do Kubernetes 1.24).
+Create a dedicated `ServiceAccount` with limited permissions and use the automatically generated token. Simple, no AWS dependency, but long-lived token (no expiration by default before Kubernetes 1.24).
 
 **B — AWS SigV4 (IAM)**
-Assinar as requisições com credenciais IAM via `aws-sigv4`. Requer que o API Gateway ou o proxy valide a assinatura. Integra bem com IRSA para workloads no cluster, mas adiciona complexidade no cliente.
+Sign requests with IAM credentials via `aws-sigv4`. Requires the API Gateway or proxy to validate the signature. Integrates well with IRSA for workloads in the cluster, but adds client complexity.
 
 **C — Cognito client credentials flow (OAuth 2.0 machine-to-machine)**
-Criar um App Client Cognito sem usuário, usar `grant_type=client_credentials` para obter um access token. Token de curta duração, auditável, sem browser. É o padrão para M2M em OAuth 2.0.
+Create a Cognito App Client without a user, use `grant_type=client_credentials` to obtain an access token. Short-lived token, auditable, no browser. Standard for M2M in OAuth 2.0.
 
-**Decisão:** Opção C avaliada como mais alinhada ao padrão OAuth 2.0 para M2M. Implementação adiada — nenhuma opção escolhida ainda.
+**Decision:** Option C evaluated as most aligned with the OAuth 2.0 M2M standard. Implementation deferred — no option chosen yet.
 
 ---
 
-## Secrets por tenant no callback-handler
+## Per-tenant secrets in the callback-handler
 
-**Status:** solução temporária em produção no lab; solução ótima documentada e adiada
+**Status:** temporary solution in production in the lab; optimal solution documented and deferred
 
-### Problema
+### Problem
 
-O `callback-handler` precisa do `client_secret` de cada App Client Cognito para trocar o authorization code por token. Com múltiplos tenants, cada um tem seu próprio App Client com secret diferente.
+The `callback-handler` needs each Cognito App Client's `client_secret` to exchange the authorization code for a token. With multiple tenants, each has its own App Client with a different secret.
 
-### Solução atual (lab)
+### Current solution (lab)
 
-Env vars nomeadas por convenção: `COGNITO_CLIENT_SECRET_<TENANT_ID_UPPERCASE>`.
-Injetadas via Kubernetes Secret criado/atualizado pelo script de deploy.
+Env vars named by convention: `COGNITO_CLIENT_SECRET_<TENANT_ID_UPPERCASE>`.
+Injected via Kubernetes Secret created/updated by the deploy script.
 
 ```python
 tenant_key = login_state.tenant_id.upper()   # "customer1" → "CUSTOMER1"
 client_secret = os.environ[f"COGNITO_CLIENT_SECRET_{tenant_key}"]
 ```
 
-Secret Kubernetes com uma chave por tenant:
+Kubernetes Secret with one key per tenant:
 
 ```yaml
 stringData:
@@ -151,191 +151,191 @@ stringData:
   STATE_JWT_SECRET: "<jwt-secret>"
 ```
 
-**Limitação:** adicionar tenant = editar o Secret + rollout do callback-handler. Secrets em base64 no etcd sem encryption at rest por padrão.
+**Limitation:** adding a tenant requires editing the Secret + rollout of callback-handler. Secrets in base64 in etcd without encryption at rest by default.
 
-### Solução ótima para produção (adiada)
+### Optimal solution for production (deferred)
 
 **External Secrets Operator + AWS Secrets Manager**
 
-- ESO sincroniza automaticamente Secrets Manager → K8s Secret
-- Rotation gerenciada pela AWS
-- Adicionar tenant = criar secret no Secrets Manager, sem tocar no deployment
-- Padrão de facto para EKS em produção nessa stack (ESO + ArgoCD)
+- ESO automatically syncs Secrets Manager → K8s Secret
+- Rotation managed by AWS
+- Adding a tenant = create secret in Secrets Manager, no deployment changes
+- De facto standard for EKS in production with this stack (ESO + ArgoCD)
 
-**Alternativa — SDK call em runtime:**
-O callback-handler chama Secrets Manager diretamente usando `tenant_id` como chave. Zero redeployment ao adicionar tenant. Desvantagem: latência extra no caminho crítico do login.
+**Alternative — SDK call at runtime:**
+The callback-handler calls Secrets Manager directly using `tenant_id` as the key. Zero redeployment when adding a tenant. Downside: extra latency on the critical login path.
 
-**Quando revisar:** ao escalar além de ~5 tenants ou ao colocar em produção.
+**When to revisit:** when scaling beyond ~5 tenants or when moving to production.
 
 ---
 
-## Cache no discovery service
+## Discovery service caching
 
-**Status:** adiado; sem cache hoje
+**Status:** deferred; no cache today
 
-### Contexto
+### Context
 
-O discovery service é chamado **duas vezes por login**: uma pelo `platform-frontend` (ao submeter o e-mail) e outra pelo `callback-handler` (para validar que o domínio do e-mail autenticado pertence ao tenant esperado). Cada chamada consulta o DynamoDB. Fora do fluxo de login, o Istio valida o JWT diretamente via JWKS — o discovery não é envolvido.
+The discovery service is called **twice per login**: once by `platform-frontend` (when the email is submitted) and once by `callback-handler` (to validate that the authenticated email domain belongs to the expected tenant). Each call queries DynamoDB. Outside the login flow, Istio validates the JWT directly via JWKS — discovery is not involved.
 
-Para o volume típico de um sistema de login, a latência do DynamoDB é aceitável. O risco real é de **disponibilidade**: se o DynamoDB ou o discovery service ficar indisponível, o login falha.
+For typical login volumes, DynamoDB latency is acceptable. The real risk is **availability**: if DynamoDB or the discovery service becomes unavailable, login fails.
 
-### Opções avaliadas
+### Options evaluated
 
-**A — Cache em memória com TTL no processo (recomendada)**
-Dict com timestamp por domínio. Domínio não encontrado ou expirado vai ao DynamoDB. TTL de 5 minutos elimina a quase totalidade das chamadas (domínios mudam raramente). Zero infra adicional.
+**A — In-memory cache with TTL in the process (recommended)**
+Dict with timestamp per domain. Domain not found or expired goes to DynamoDB. A 5-minute TTL eliminates almost all calls (domains change rarely). Zero additional infrastructure.
 
 **B — ElastiCache (Redis/Memcached)**
-Cache compartilhado entre pods e regiões. Útil se o número de pods do discovery crescer muito. Adiciona infra, custo e complexidade operacional — não justifica no estágio atual.
+Cache shared across pods and regions. Useful if the number of discovery pods grows significantly. Adds infrastructure, cost, and operational complexity — not justified at the current stage.
 
 **C — DynamoDB DAX**
-Cache gerenciado na frente do DynamoDB, latência de microssegundos. Custo elevado para o padrão de acesso (logins, não queries contínuas). Não justifica.
+Managed cache in front of DynamoDB, microsecond latency. High cost for this access pattern (logins, not continuous queries). Not justified.
 
-### Decisão
+### Decision
 
-Opção A avaliada como suficiente para o volume esperado. Implementação adiada até que a latência do DynamoDB se prove um problema real em produção.
+Option A evaluated as sufficient for the expected volume. Implementation deferred until DynamoDB latency proves to be a real problem in production.
 
-### Quando revisar
+### When to revisit
 
-Ao observar p99 de latência no login acima de 500 ms, ou ao escalar o número de pods do discovery (onde o cache em memória por pod se torna ineficiente).
-
----
-
-## User Pool único compartilhado vs um por tier/região
-
-**Status:** pendente de decisão
-
-### Contexto
-
-O Cognito User Pool é uma instância global única no lab atual (`us-east-1`). Em uma topologia multi-região com Global Accelerator, o callback pode retornar para qualquer cluster regional — todos precisam validar o JWT emitido pelo mesmo pool.
-
-### Opções
-
-**A — User Pool único global**
-Simples, todos os clusters validam o mesmo JWKS. Latência de validação depende do JWKS endpoint do Cognito (geralmente baixa, com cache). Limite de 300 IdPs externos por pool.
-
-**B — Um User Pool por região (alinhado ao Global Accelerator)**
-Cada região tem seu pool; o frontend usa o pool da região mais próxima. Elimina dependência cross-region no caminho de autenticação. Adiciona complexidade: o `client_id` por tenant precisa ser replicado por região, e o callback precisa saber para qual pool redirecionar.
-
-### Quando decidir
-
-Ao planejar a expansão multi-região. Para o lab de cluster único, User Pool único é suficiente.
+When observing p99 login latency above 500 ms, or when scaling the number of discovery pods (where per-pod in-memory cache becomes inefficient).
 
 ---
 
-## Keycloak self-hosted — risco de SLA acoplado ao customer
+## Single shared User Pool vs one per tier/region
 
-**Status:** risco documentado; decisão de aceitar ou mitigar pendente de caso real
+**Status:** pending decision
 
-### Contexto
+### Context
 
-Quando um tenant usa Keycloak self-hosted, o Cognito precisa de conectividade de rede para o servidor Keycloak do customer durante o login. Se o Keycloak do customer ficar indisponível, o login do tenant inteiro quebra.
+The Cognito User Pool is a single global instance in the current lab (`us-east-1`). In a multi-region topology with Global Accelerator, the callback can return to any regional cluster — all need to validate JWTs issued by the same pool.
 
-### Opções de mitigação
+### Options
 
-| Opção | Trade-off |
+**A — Single global User Pool**
+Simple; all clusters validate the same JWKS. Validation latency depends on the Cognito JWKS endpoint (generally low, with caching). Limit of 300 external IdPs per pool.
+
+**B — One User Pool per region (aligned with Global Accelerator)**
+Each region has its own pool; the frontend uses the pool from the nearest region. Eliminates cross-region dependency in the authentication path. Adds complexity: the `client_id` per tenant must be replicated per region, and the callback needs to know which pool to redirect to.
+
+### When to decide
+
+When planning multi-region expansion. For the single-cluster lab, a single User Pool is sufficient.
+
+---
+
+## Keycloak self-hosted — SLA coupled to customer risk
+
+**Status:** risk documented; decision to accept or mitigate pending a real case
+
+### Context
+
+When a tenant uses self-hosted Keycloak, Cognito needs network connectivity to the customer's Keycloak server during login. If the customer's Keycloak becomes unavailable, the entire tenant's login breaks.
+
+### Mitigation options
+
+| Option | Trade-off |
 |---|---|
-| Customer expõe Keycloak publicamente com TLS | Mais simples; expõe infra do customer |
-| AWS PrivateLink + VPN site-to-site | Mais seguro; complexidade operacional alta |
-| Customer migra para Keycloak Cloud (managed) | Elimina o problema; depende de decisão do customer |
-| Documentar como risco contratual explícito | Zero custo técnico; SLA da plataforma fica degradado para esse tenant |
+| Customer exposes Keycloak publicly with TLS | Simpler; exposes customer infrastructure |
+| AWS PrivateLink + site-to-site VPN | More secure; high operational complexity |
+| Customer migrates to Keycloak Cloud (managed) | Eliminates the problem; depends on the customer's decision |
+| Document as explicit contractual risk | Zero technical cost; platform SLA degraded for that tenant |
 
-### Decisão recomendada
+### Recommended decision
 
-Documentar como risco contratual explícito para qualquer tenant com Keycloak self-hosted. Exigir SLA de disponibilidade do Keycloak como pré-requisito para onboarding ou oferecer tier diferenciado.
-
----
-
-## Sessão cross-region — tokens JWT stateless
-
-**Status:** decisão tomada para o caso de tokens de acesso; refresh tokens requerem atenção
-
-### Contexto
-
-No Global Accelerator com múltiplos clusters regionais, um usuário pode começar o login em `us-east-1` e ter o callback processado em `eu-central-1`. O JWT emitido pelo Cognito é stateless — qualquer cluster com acesso ao JWKS do Cognito consegue validar.
-
-### Decisão
-
-Tokens JWT de acesso funcionam sem estado compartilhado entre regiões. Cada cluster valida o JWT localmente contra o JWKS do Cognito (com cache local).
-
-Refresh tokens emitidos pelo Cognito são opacos e precisam ser trocados no mesmo User Pool que os emitiu — o Cognito lida com isso globalmente. Se a plataforma armazenar refresh tokens em DynamoDB para renovação transparente, a tabela deve ser uma **DynamoDB Global Table** para acesso local em qualquer região.
+Document as explicit contractual risk for any tenant with self-hosted Keycloak. Require a Keycloak availability SLA as a prerequisite for onboarding, or offer a differentiated tier.
 
 ---
 
-## Microsoft MSA vs Azure AD corporativo no Cognito
+## Cross-region session — stateless JWT tokens
 
-**Status:** decisão tomada
+**Status:** decision made for access tokens; refresh tokens require attention
 
-### Contexto
+### Context
 
-O Cognito suporta dois tipos de issuer para contas Microsoft, e a distinção é necessária antes de criar o IdP:
+With Global Accelerator across multiple regional clusters, a user can start login in `us-east-1` and have the callback processed in `eu-central-1`. The Cognito JWT is stateless — any cluster with access to the Cognito JWKS can validate it.
 
-| Tipo de conta | `oidc_issuer` | Quando usar |
+### Decision
+
+JWT access tokens work without shared state between regions. Each cluster validates the JWT locally against the Cognito JWKS (with local cache).
+
+Refresh tokens issued by Cognito are opaque and need to be exchanged at the same User Pool that issued them — Cognito handles this globally. If the platform stores refresh tokens in DynamoDB for transparent renewal, the table must be a **DynamoDB Global Table** for local access in any region.
+
+---
+
+## Microsoft MSA vs corporate Azure AD in Cognito
+
+**Status:** decision made
+
+### Context
+
+Cognito supports two types of issuer for Microsoft accounts, and the distinction must be made before creating the IdP:
+
+| Account type | `oidc_issuer` | When to use |
 |---|---|---|
-| Contas pessoais Microsoft (MSA, Hotmail, Outlook.com) | `https://login.microsoftonline.com/9188040d-6c67-4c5b-b112-36a304b66dad/v2.0` | GUID fixo para MSA — não é um tenant ID real |
-| Azure AD corporativo / Google Workspace federado via Azure AD | `https://login.microsoftonline.com/<azure-tenant-id>/v2.0` | Usar o tenant ID real da organização no Azure |
+| Microsoft personal accounts (MSA, Hotmail, Outlook.com) | `https://login.microsoftonline.com/9188040d-6c67-4c5b-b112-36a304b66dad/v2.0` | Fixed GUID for MSA — not a real tenant ID |
+| Corporate Azure AD / Google Workspace federated via Azure AD | `https://login.microsoftonline.com/<azure-tenant-id>/v2.0` | Use the organization's real tenant ID in Azure |
 
-### Decisão
+### Decision
 
-Registrar o IdP no Cognito com o `oidc_issuer` correspondente ao tipo de conta. A confusão mais comum é usar o GUID de MSA para contas corporativas (ou vice-versa), resultando em falha silenciosa na autenticação.
+Register the IdP in Cognito with the `oidc_issuer` corresponding to the account type. The most common mistake is using the MSA GUID for corporate accounts (or vice versa), resulting in silent authentication failures.
 
-Para tenants SaaS corporativos, o caso esperado é **Azure AD com tenant ID real**. MSA é relevante apenas se a plataforma aceitar contas pessoais Microsoft.
-
----
-
-## Gateway API vs Ingress clássico no ALB Controller
-
-**Status:** decisão tomada; revisitar quando a série v3.x do ALB Controller estabilizar
-
-### Contexto
-
-O AWS Load Balancer Controller v3.x adicionou suporte à Kubernetes Gateway API (`GatewayClass`, `Gateway`, `HTTPRoute`) a partir da v3.0. Este lab utiliza intencionalmente os recursos clássicos `Ingress` e `IngressClass`.
-
-### Decisão: manter Ingress/IngressClass
-
-A issue [kubernetes-sigs/aws-load-balancer-controller#4674](https://github.com/kubernetes-sigs/aws-load-balancer-controller/issues/4674) (aberta em abril de 2026) reporta que o upgrade de `v3.1.0` para `v3.2.1` quebra instalações onde a Gateway API **não está habilitada**, pois os CRDs de `ListenerSet` ficam ausentes. Enquanto esse tipo de problema de compatibilidade não estiver estabilizado, manter `Ingress`/`IngressClass` é a escolha conservadora.
-
-O Istio `Gateway` + `VirtualService` (passo 08) é um recurso do próprio Istio e **não** é afetado por essa limitação do ALB Controller.
-
-### Quando revisitar
-
-- Resolução da issue #4674 e de outros bugs de compatibilidade na série v3.x
-- Avaliar `HTTPRoute` → ALB para substituir o `Ingress` atual (`07-configure-alb-ingress`)
+For corporate SaaS tenants, the expected case is **Azure AD with a real tenant ID**. MSA is relevant only if the platform accepts Microsoft personal accounts.
 
 ---
 
-## DNS por tenant — CNAME vs Global Accelerator
+## Gateway API vs classic Ingress in ALB Controller
 
-**Status:** decisão tomada; implementação no waspctl planejada para Fase 3
+**Status:** decision made; revisit when the ALB Controller v3.x series stabilizes
 
-### Contexto
+### Context
 
-O apex `wasp.silvios.me` exige Global Accelerator porque CNAME-at-apex é proibido pelo RFC 1034 e o Azure DNS não suporta ALIAS records para ALBs externos. Subdomínios como `customer1.wasp.silvios.me` não têm essa restrição — CNAME direto para o hostname do ALB funciona normalmente.
+AWS Load Balancer Controller v3.x added support for the Kubernetes Gateway API (`GatewayClass`, `Gateway`, `HTTPRoute`) starting with v3.0. This lab intentionally uses the classic `Ingress` and `IngressClass` resources.
 
-O Global Accelerator foi testado no lab para o apex. A questão é como tratar subdomínios de tenant que precisam de failover regional (ex: `customer1.wasp.silvios.me` → `us-east-1` com failover para `eu-west-1`) sem criar um accelerator por tenant.
+### Decision: keep Ingress/IngressClass
 
-### Opções avaliadas
+Issue [kubernetes-sigs/aws-load-balancer-controller#4674](https://github.com/kubernetes-sigs/aws-load-balancer-controller/issues/4674) (opened in April 2026) reports that upgrading from `v3.1.0` to `v3.2.1` breaks installations where the Gateway API is **not enabled**, because the `ListenerSet` CRDs are absent. While this type of compatibility issue is not stabilized, keeping `Ingress`/`IngressClass` is the conservative choice.
 
-**A — Um Global Accelerator por tenant com failover**
-Cada tenant premium tem seus próprios IPs anycast estáticos. Permite configuração de failover completamente independente (região de destino, threshold de health check). Custo: ~$18/mês por accelerator. Limite padrão: 20 accelerators por conta AWS.
+The Istio `Gateway` + `VirtualService` (step 08) is an Istio resource and is **not** affected by this ALB Controller limitation.
 
-**B — Global Accelerator compartilhado por perfil de failover**
-Tenants que precisam do mesmo par de regiões (ex: `us-east-1 → eu-west-1`) compartilham um único accelerator. O roteamento por tenant acontece no host header (ALB → Istio VirtualService) — os IPs anycast são os mesmos para todos no grupo. Custo dividido por N tenants no mesmo perfil.
+### When to revisit
 
-**C — CNAME direto (sem failover)**
-Para tenants sem requisito de failover, CNAME para o hostname do ALB. Zero custo de infra adicional. Sem IPs estáticos, mas isso não é problema para subdomínios.
+- Resolution of issue #4674 and other compatibility bugs in the v3.x series
+- Evaluate `HTTPRoute` → ALB to replace the current `Ingress` (`07-configure-alb-ingress`)
 
-### Decisão: modelo de dois tiers
+---
 
-| Tier | DNS | Infraestrutura | Failover |
+## Per-tenant DNS — CNAME vs Global Accelerator
+
+**Status:** decision made; waspctl implementation planned for Phase 3
+
+### Context
+
+The apex `wasp.silvios.me` requires Global Accelerator because CNAME-at-apex is prohibited by RFC 1034 and Azure DNS does not support ALIAS records for external ALBs. Subdomains like `customer1.wasp.silvios.me` have no such restriction — a direct CNAME to the ALB hostname works normally.
+
+Global Accelerator was tested in the lab for the apex. The question is how to handle tenant subdomains that need regional failover (e.g., `customer1.wasp.silvios.me` → `us-east-1` with failover to `eu-west-1`) without creating one accelerator per tenant.
+
+### Options evaluated
+
+**A — One Global Accelerator per tenant with failover**
+Each premium tenant has its own static anycast IPs. Allows completely independent failover configuration (target region, health check threshold). Cost: ~$18/month per accelerator. Default limit: 20 accelerators per AWS account.
+
+**B — Shared Global Accelerator per failover profile**
+Tenants that need the same region pair (e.g., `us-east-1 → eu-west-1`) share a single accelerator. Per-tenant routing happens at the host header (ALB → Istio VirtualService) — the anycast IPs are the same for everyone in the group. Cost split across N tenants in the same profile.
+
+**C — Direct CNAME (no failover)**
+For tenants without failover requirements, CNAME to the ALB hostname. Zero additional infrastructure cost. No static IPs, but that is not a problem for subdomains.
+
+### Decision: two-tier model
+
+| Tier | DNS | Infrastructure | Failover |
 |---|---|---|---|
-| Padrão | `CNAME → alb-hostname.amazonaws.com` | nenhuma | nenhum |
-| Premium | `A record → IPs do GA compartilhado` | GA por par de regiões | regional simultâneo para todos no GA |
+| Standard | `CNAME → alb-hostname.amazonaws.com` | none | none |
+| Premium | `A record → shared GA IPs` | GA per region pair | simultaneous regional for all in the GA |
 
-GA dedicado por tenant (Opção A) só se justifica quando o tenant exige **configuração de failover diferente** dos demais no mesmo par de regiões — ex: threshold distinto, região de destino exclusiva, ou SLA que exige isolamento total.
+A dedicated GA per tenant (Option A) is only justified when the tenant requires **different failover configuration** from others in the same region pair — e.g., different threshold, exclusive target region, or an SLA requiring total isolation.
 
-### Modelo de dados para o waspctl
+### Data model for waspctl
 
-O campo `failover_tier` no registro do tenant determina o comportamento de DNS:
+The `failover_tier` field in the tenant record determines DNS behavior:
 
 ```json
 {
@@ -353,35 +353,35 @@ O campo `failover_tier` no registro do tenant determina o comportamento de DNS:
 }
 ```
 
-O `waspctl tenant create` consultaria `failover_tier` para decidir se:
-1. Cria um novo GA (primeiro tenant daquele par de regiões)
-2. Reutiliza um GA existente (tenants adicionais no mesmo par)
-3. Cria apenas um CNAME (tenants sem failover)
+`waspctl tenant create` would consult `failover_tier` to decide whether to:
+1. Create a new GA (first tenant for that region pair)
+2. Reuse an existing GA (additional tenants on the same pair)
+3. Create only a CNAME (tenants without failover)
 
-### Limitação do GA compartilhado
+### Shared GA limitation
 
-O failover trigger (health check no endpoint group) é **compartilhado** — se o ALB de `us-east-1` falhar, todos os tenants no mesmo GA fazem failover simultaneamente. Esse comportamento é aceitável quando a causa do failover é infraestrutura compartilhada (o próprio ALB/cluster). Se tenants precisam de failover independente por razões de SLA ou de blast radius contido, GA dedicado é necessário.
+The failover trigger (health check on the endpoint group) is **shared** — if the `us-east-1` ALB fails, all tenants in the same GA fail over simultaneously. This behavior is acceptable when the failover cause is shared infrastructure (the ALB/cluster itself). If tenants need independent failover for SLA reasons or contained blast radius, a dedicated GA is required.
 
 ---
 
-## STATE_JWT_SECRET em deployments multi-região
+## STATE_JWT_SECRET in multi-region deployments
 
-**Status:** decisão tomada; implementação da rotação adiada
+**Status:** decision made; rotation implementation deferred
 
-### Contexto
+### Context
 
-O `STATE_JWT_SECRET` é o segredo compartilhado entre `platform-frontend` e `callback-handler` para assinar e verificar o state JWT do OAuth flow (proteção CSRF). O Cognito é uma instância global única — o callback retorna para `auth.wasp.silvios.me`, que o Global Accelerator pode rotear para **qualquer** cluster regional.
+`STATE_JWT_SECRET` is the shared secret between `platform-frontend` and `callback-handler` for signing and verifying the OAuth flow state JWT (CSRF protection). Cognito is a single global instance — the callback returns to `auth.wasp.silvios.me`, which Global Accelerator can route to **any** regional cluster.
 
-### Decisão: segredo idêntico em todos os clusters
+### Decision: identical secret in all clusters
 
-Se o state JWT foi assinado em `us-east-1` mas o callback cai em `eu-central-1`, o `callback-handler` nessa região precisa verificar a assinatura. Portanto o `STATE_JWT_SECRET` deve ser o mesmo em todos os clusters regionais.
+If the state JWT was signed in `us-east-1` but the callback lands in `eu-central-1`, the `callback-handler` in that region needs to verify the signature. Therefore `STATE_JWT_SECRET` must be the same in all regional clusters.
 
-### Implicações
+### Implications
 
-- **Provisionamento:** o segredo deve ser replicado para todas as regiões. Com ESO + Secrets Manager com replicação cross-region, isso é automático.
-- **Rotação:** precisa ser coordenada — todos os clusters devem receber o novo segredo simultaneamente, ou aceitar dois segredos durante uma janela de transição (exigiria suporte a múltiplos segredos no `decode_state_token`).
-- **Comprometimento:** se o segredo vazar, um atacante pode forjar state JWTs válidos. A expiração curta (10 minutos) limita a janela de exploração — rotation imediata invalida todos os states em voo (usuários precisam reiniciar o login).
+- **Provisioning:** the secret must be replicated to all regions. With ESO + Secrets Manager with cross-region replication, this is automatic.
+- **Rotation:** must be coordinated — all clusters must receive the new secret simultaneously, or accept two secrets during a transition window (would require support for multiple secrets in `decode_state_token`).
+- **Compromise:** if the secret leaks, an attacker can forge valid state JWTs. The short expiration (10 minutes) limits the exploitation window — immediate rotation invalidates all in-flight states (users need to restart login).
 
-### Solução ótima para rotação (adiada)
+### Optimal rotation solution (deferred)
 
-Suporte a dois segredos simultâneos no `decode_state_token` (tenta verificar com o novo; se falhar, tenta com o anterior). Permite rotação sem downgrade de UX. Implementar junto com a migração para ESO + Secrets Manager.
+Support for two simultaneous secrets in `decode_state_token` (try verifying with the new one; if it fails, try the previous one). Allows rotation without UX downgrade. Implement alongside the migration to ESO + Secrets Manager.

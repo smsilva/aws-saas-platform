@@ -1,40 +1,40 @@
 # Platform Frontend
 
-> Frontend de login da plataforma. Recebe o e-mail do usuário, consulta o Discovery Service e redireciona para o Cognito Hosted UI do tenant correspondente.
+> Platform login frontend. Receives the user's email, queries the Discovery Service, and redirects to the Cognito Hosted UI for the corresponding tenant.
 
-## Responsabilidade
+## Responsibility
 
-Ponto de entrada do usuário. Funciona como "IdP router": não autentica o usuário diretamente — apenas descobre qual IdP usar e inicia o OAuth 2.0 Authorization Code Flow redirecionando para o Cognito correto.
+User entry point. Works as an "IdP router": does not authenticate the user directly — it only discovers which IdP to use and initiates the OAuth 2.0 Authorization Code Flow by redirecting to the correct Cognito.
 
-## Fluxo de login
+## Login flow
 
-1. Usuário acessa `https://wasp.silvios.me` → `GET /` renderiza `login.html`
-2. Usuário digita o e-mail e submete o formulário → `POST /login`
-3. O serviço valida o formato do e-mail e extrai o domínio
-4. Chama `GET /tenant?domain=<domínio>` no Discovery Service
-5. Monta o state JWT com `tenant_id`, `client_id`, `return_url` e `nonce` (expira em 10 min, HS256)
-6. Monta a URL de autorização do Cognito com `identity_provider`, `scope`, `state`, `redirect_uri`
-7. Retorna `HTTP 302` → Cognito Hosted UI
+1. User accesses `https://wasp.silvios.me` → `GET /` renders `login.html`
+2. User types the email and submits the form → `POST /login`
+3. The service validates the email format and extracts the domain
+4. Calls `GET /tenant?domain=<domain>` on the Discovery Service
+5. Builds the state JWT with `tenant_id`, `client_id`, `return_url`, and `nonce` (expires in 10 min, HS256)
+6. Builds the Cognito authorization URL with `identity_provider`, `scope`, `state`, `redirect_uri`
+7. Returns `HTTP 302` → Cognito Hosted UI
 
 ## API
 
 ### `GET /`
 
-Renderiza `login.html`. Não requer autenticação.
+Renders `login.html`. No authentication required.
 
 ### `POST /login`
 
-| Parâmetro | Tipo | Obrigatório | Descrição |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `email` | string (form) | sim | E-mail do usuário |
+| `email` | string (form) | yes | User's email |
 
-**Comportamento:**
+**Behavior:**
 
-| Condição | Resposta |
+| Condition | Response |
 |---|---|
-| E-mail sem `@` ou sem `.` no domínio | Re-renderiza login com mensagem de erro |
-| Domínio não encontrado no Discovery | Re-renderiza login com mensagem de erro |
-| Domínio encontrado | `HTTP 302` → Cognito Hosted UI |
+| Email without `@` or without `.` in domain | Re-renders login with error message |
+| Domain not found in Discovery | Re-renders login with error message |
+| Domain found | `HTTP 302` → Cognito Hosted UI |
 
 ### `GET /health`
 
@@ -44,58 +44,58 @@ Renderiza `login.html`. Não requer autenticação.
 
 ## State JWT
 
-O state JWT é a proteção CSRF do OAuth flow. Definido em `services/platform-frontend/app/auth.py`:
+The state JWT is the CSRF protection for the OAuth flow. Defined in `services/platform-frontend/app/auth.py`:
 
-| Campo | Tipo | Descrição |
+| Field | Type | Description |
 |---|---|---|
-| `tenant_id` | string | ID do tenant (ex: `customer1`) |
-| `client_id` | string | Cognito App Client ID do tenant |
-| `return_url` | string | URL de destino pós-login (`https://<tenant_url>`) |
-| `nonce` | string | 16 bytes urlsafe aleatórios — unicidade por request |
-| `exp` | timestamp | Expira em 10 minutos |
+| `tenant_id` | string | Tenant ID (e.g. `customer1`) |
+| `client_id` | string | Cognito App Client ID for the tenant |
+| `return_url` | string | Post-login destination URL (`https://<tenant_url>`) |
+| `nonce` | string | 16 random urlsafe bytes — uniqueness per request |
+| `exp` | timestamp | Expires in 10 minutes |
 
-- **Algoritmo:** HS256
-- **Segredo:** `STATE_JWT_SECRET` — compartilhado com `callback-handler`
+- **Algorithm:** HS256
+- **Secret:** `STATE_JWT_SECRET` — shared with `callback-handler`
 
-## URL de autorização do Cognito
+## Cognito authorization URL
 
-Parâmetros montados por `build_cognito_authorize_url()` em `auth.py`:
+Parameters built by `build_cognito_authorize_url()` in `auth.py`:
 
-| Parâmetro | Valor |
+| Parameter | Value |
 |---|---|
-| `client_id` | Cognito App Client ID do tenant |
-| `identity_provider` | Nome do IdP no Cognito (ex: `Google`, `MicrosoftAD-Customer2`) |
+| `client_id` | Cognito App Client ID for the tenant |
+| `identity_provider` | IdP name in Cognito (e.g. `Google`, `MicrosoftAD-Customer2`) |
 | `redirect_uri` | `https://auth.wasp.silvios.me/callback` |
 | `response_type` | `code` |
 | `scope` | `openid email profile` |
-| `state` | State JWT assinado |
+| `state` | Signed state JWT |
 
-URL montada: `https://<COGNITO_DOMAIN>/oauth2/authorize?<params>`
+URL built: `https://<COGNITO_DOMAIN>/oauth2/authorize?<params>`
 
-## Variáveis de ambiente
+## Environment variables
 
-| Variável | Descrição |
+| Variable | Description |
 |---|---|
-| `DISCOVERY_URL` | URL base do Discovery Service (ex: `https://discovery.wasp.silvios.me`) |
-| `COGNITO_DOMAIN` | Hostname do Cognito — **sem `https://`** (ex: `idp.wasp.silvios.me`) |
-| `CALLBACK_URL` | URL de callback OAuth (ex: `https://auth.wasp.silvios.me/callback`) |
-| `STATE_JWT_SECRET` | Segredo compartilhado com `callback-handler` |
+| `DISCOVERY_URL` | Discovery Service base URL (e.g. `https://discovery.wasp.silvios.me`) |
+| `COGNITO_DOMAIN` | Cognito hostname — **without `https://`** (e.g. `idp.wasp.silvios.me`) |
+| `CALLBACK_URL` | OAuth callback URL (e.g. `https://auth.wasp.silvios.me/callback`) |
+| `STATE_JWT_SECRET` | Shared secret with `callback-handler` |
 
-!!! warning "`COGNITO_DOMAIN` sem `https://`"
-    O código em `auth.py` adiciona o scheme `https://` ao montar a URL. Se `COGNITO_DOMAIN` for `https://idp.wasp.silvios.me`, o redirect gerado será `https://https://idp...` e o login quebrará.
+!!! warning "`COGNITO_DOMAIN` without `https://`"
+    The code in `auth.py` prepends the `https://` scheme when building the URL. If `COGNITO_DOMAIN` is `https://idp.wasp.silvios.me`, the generated redirect will be `https://https://idp...` and login will break.
 
-## Namespace e deploy K8s
+## Kubernetes namespace and deploy
 
 - **Namespace:** `platform`
-- **Imagem:** `silviosilva/wasp-platform-frontend:<sha>`
+- **Image:** `silviosilva/wasp-platform-frontend:<sha>`
 - **ConfigMap:** `platform-frontend-config` (DISCOVERY_URL, COGNITO_DOMAIN, CALLBACK_URL)
 - **Secret:** `platform-frontend-secret` (STATE_JWT_SECRET)
 
-## Testes
+## Tests
 
 ```bash
 cd services/platform-frontend
 .venv/bin/pytest tests/ -v
 ```
 
-- `test_login_page.py` — testa `GET /`, `POST /login` (e-mail inválido, domínio não encontrado, domínio encontrado com redirect correto)
+- `test_login_page.py` — tests `GET /`, `POST /login` (invalid email, domain not found, domain found with correct redirect)

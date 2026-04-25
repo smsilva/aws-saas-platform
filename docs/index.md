@@ -1,67 +1,67 @@
-# EKS Lab — ALB + Istio + Autenticação Multi-tenant
+# EKS Lab — ALB + Istio + Multi-tenant Authentication
 
-Laboratório de EKS que provisiona uma plataforma SaaS multi-tenant completa: VPC com subnets públicas e privadas, ALB com TLS, Istio IngressGateway, WAF, e uma stack de autenticação federada com Amazon Cognito e DynamoDB. Suporta múltiplos Identity Providers (Google, Microsoft, Okta, Auth0, Keycloak) por tenant.
+EKS lab that provisions a complete multi-tenant SaaS platform: VPC with public and private subnets, ALB with TLS, Istio IngressGateway, WAF, and a federated authentication stack with Amazon Cognito and DynamoDB. Supports multiple Identity Providers (Google, Microsoft, Okta, Auth0, Keycloak) per tenant.
 
-## Componentes provisionados
+## Provisioned components
 
-| Componente | Tipo | Descrição |
+| Component | Type | Description |
 |---|---|---|
-| VPC `10.0.0.0/16` | AWS | Rede isolada com 2 subnets públicas e 2 privadas em AZs distintas |
-| Internet Gateway | AWS | Tráfego de entrada e saída nas subnets públicas |
-| NAT Gateway + EIP | AWS | Tráfego de saída das subnets privadas com IP público fixo |
-| Route Tables | AWS | Roteamento público (via IGW) e privado (via NAT GW) |
-| EKS Cluster | AWS | Control plane gerenciado, versão `1.34`, OIDC provider habilitado para IRSA |
-| Managed Node Group | AWS | 2–5 nós `t3.medium` nas subnets privadas, IMDSv2 obrigatório |
-| IAM Access Entry | AWS | Permissão `cluster-admin` para o caller IAM via EKS Access API |
-| AWS Load Balancer Controller `v3.2.1` | Kubernetes | Operador que gerencia o ALB a partir de recursos `Ingress` |
-| IAM Role (IRSA) | AWS | Role vinculada ao service account do ALB Controller via OIDC |
-| ALB | AWS | Load balancer internet-facing, TLS terminado via ACM, redireciona HTTP→HTTPS |
-| ACM Certificate | AWS | Certificado Let's Encrypt importado para `*.wasp.silvios.me` |
+| VPC `10.0.0.0/16` | AWS | Isolated network with 2 public and 2 private subnets in different AZs |
+| Internet Gateway | AWS | Inbound and outbound traffic on public subnets |
+| NAT Gateway + EIP | AWS | Outbound traffic from private subnets with a fixed public IP |
+| Route Tables | AWS | Public routing (via IGW) and private routing (via NAT GW) |
+| EKS Cluster | AWS | Managed control plane, version `1.34`, OIDC provider enabled for IRSA |
+| Managed Node Group | AWS | 2–5 `t3.medium` nodes in private subnets, IMDSv2 required |
+| IAM Access Entry | AWS | `cluster-admin` permission for the caller IAM via EKS Access API |
+| AWS Load Balancer Controller `v3.2.1` | Kubernetes | Operator that manages the ALB from `Ingress` resources |
+| IAM Role (IRSA) | AWS | Role bound to the ALB Controller service account via OIDC |
+| ALB | AWS | Internet-facing load balancer, TLS terminated via ACM, redirects HTTP→HTTPS |
+| ACM Certificate | AWS | Let's Encrypt certificate imported for `*.wasp.silvios.me` |
 | Istio | Kubernetes | `istio-base` (CRDs), `istiod` (control plane), `istio-ingressgateway` (ClusterIP) |
-| WAF WebACL | AWS | Regras gerenciadas AWS (CRS, KnownBadInputs, IP Reputation) + rate limiting |
-| DynamoDB | AWS | Tabela `tenant-registry` com configuração de tenants e IdPs |
-| Amazon Cognito | AWS | User Pool como hub de federação, custom domain no ACM |
+| WAF WebACL | AWS | AWS Managed Rules (CRS, KnownBadInputs, IP Reputation) + rate limiting |
+| DynamoDB | AWS | `tenant-registry` table with tenant and IdP configuration |
+| Amazon Cognito | AWS | User Pool as federation hub, custom domain on ACM |
 
-Para o fluxo de tráfego detalhado e a topologia multi-região, ver [Arquitetura](arquitetura/index.md).
+For the detailed traffic flow and multi-region topology, see [Architecture](arquitetura/index.md).
 
-## Projeto waspctl
+## waspctl project
 
-Este lab documenta a Fase 1 da plataforma WASP: cluster único, Auth Service customizado e autenticação multi-tenant manual via scripts. O projeto [`waspctl`](https://github.com/silviosilva/waspctl) está sendo desenvolvido como CLI para automatizar o provisionamento dessa mesma topologia em Fases 2 e 3 (platform-clusters separados + expansão multi-região com Global Accelerator).
+This lab documents Phase 1 of the WASP platform: single cluster, custom Auth Service, and manual multi-tenant authentication via scripts. The [`waspctl`](https://github.com/silviosilva/waspctl) project is being developed as a CLI to automate provisioning of this same topology in Phases 2 and 3 (separate platform-clusters + multi-region expansion with Global Accelerator).
 
-## Navegação
+## Navigation
 
 <div class="grid cards" markdown>
 
--   **Arquitetura**
+-   **Architecture**
 
     ---
 
-    Topologia, fluxo de tráfego detalhado, autenticação multi-tenant e decisões técnicas.
+    Topology, detailed traffic flow, multi-tenant authentication, and technical decisions.
 
-    [:octicons-arrow-right-24: Ver Arquitetura](arquitetura/index.md)
+    [:octicons-arrow-right-24: View Architecture](arquitetura/index.md)
 
--   **Operações**
-
-    ---
-
-    Passo a passo de provisionamento (scripts 01–17), onboarding de novos tenants e teardown.
-
-    [:octicons-arrow-right-24: Ver Operações](operacoes/index.md)
-
--   **Serviços**
+-   **Operations**
 
     ---
 
-    Os três microserviços Python/FastAPI: Discovery, Platform Frontend e Callback Handler.
+    Provisioning step-by-step (scripts 01–17), new tenant onboarding, and teardown.
 
-    [:octicons-arrow-right-24: Ver Serviços](servicos/index.md)
+    [:octicons-arrow-right-24: View Operations](operacoes/index.md)
 
--   **Segurança**
+-   **Services**
 
     ---
 
-    Revisão de segurança dos scripts com severidade, vetor de ataque e status de mitigação.
+    The three Python/FastAPI microservices: Discovery, Platform Frontend, and Callback Handler.
 
-    [:octicons-arrow-right-24: Ver Segurança](seguranca/index.md)
+    [:octicons-arrow-right-24: View Services](servicos/index.md)
+
+-   **Security**
+
+    ---
+
+    Security review of the scripts with severity, attack vector, and mitigation status.
+
+    [:octicons-arrow-right-24: View Security](seguranca/index.md)
 
 </div>

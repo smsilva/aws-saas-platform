@@ -1,8 +1,8 @@
-# Well-Architected Framework — Roadmap de Produção
+# Well-Architected Framework — Production Roadmap
 
-Cada subdiretório é uma change autossuficiente com `proposal.md`, `tasks.md` e `design.md`.
+Each subdirectory is a self-contained change with `proposal.md`, `tasks.md`, and `design.md`.
 
-## Ordem de execução
+## Execution order
 
 ```
 P0  security/changes/vpn-private-control-plane/        (LAB-VPN-01~06)
@@ -27,9 +27,9 @@ P3  operations/changes/cicd-ecr-runbooks/              (LAB-OPS-07~10)
 P3  sustainability/changes/graviton3-nodes/            (LAB-SUS-01, requires karpenter)
 ```
 
-## Pilares
+## Pillars
 
-| Pilar | Diretório | Changes |
+| Pillar | Directory | Changes |
 |---|---|---|
 | 🔐 Security | `security/changes/` | 7 |
 | 🏛 Reliability | `reliability/changes/` | 3 |

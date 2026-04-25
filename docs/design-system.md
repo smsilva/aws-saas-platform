@@ -1,96 +1,96 @@
 # Design System — WASP Lab Frontend
 
-Decisões visuais, componentes reutilizáveis e fluxo de validação sem subir o ambiente.
+Visual decisions, reusable components, and design validation flow without running the environment.
 
 ---
 
-## 0. Fontes de verdade
+## 0. Sources of truth
 
-| Camada | Arquivo | Responsabilidade |
+| Layer | File | Responsibility |
 |---|---|---|
-| **Tokens e componentes** | `design/shared/tokens.css` | CSS custom properties (paleta, dark mode, motion) |
-| **Componentes base** | `design/shared/base.css` | Reset, theme-toggle, botões, animações, logo |
-| **Documentação narrativa** | `docs/design-system.md` (este arquivo) | Decisões de design, trade-offs, guias de uso |
-| **CSS específico** | `services/<svc>/app/static/<svc>.css` | Apenas overrides e componentes exclusivos do serviço |
+| **Tokens and components** | `design/shared/tokens.css` | CSS custom properties (palette, dark mode, motion) |
+| **Base components** | `design/shared/base.css` | Reset, theme-toggle, buttons, animations, logo |
+| **Narrative documentation** | `docs/design-system.md` (this file) | Design decisions, trade-offs, usage guides |
+| **Service-specific CSS** | `services/<svc>/app/static/<svc>.css` | Only overrides and components exclusive to the service |
 
-### Regra
+### Rule
 
-> Toda alteração visual que afeta mais de um serviço deve partir de `design/shared/`. Nunca editar tokens ou componentes compartilhados diretamente nos CSS dos serviços.
+> Any visual change that affects more than one service must originate from `design/shared/`. Never edit tokens or shared components directly in service CSS files.
 
-### Estrutura de arquivos
+### File structure
 
 ```
 design/
 ├── shared/
-│   ├── tokens.css    ← edite aqui para mudar cores, dark mode, etc.
-│   └── base.css      ← edite aqui para mudar theme-toggle, botões, ripple
-└── index.html        ← sandbox de visualização
+│   ├── tokens.css    ← edit here to change colors, dark mode, etc.
+│   └── base.css      ← edit here to change theme-toggle, buttons, ripple
+└── index.html        ← visualization sandbox
 
 services/<svc>/app/static/
-├── shared -> ../../../../design/shared   (symlink git-tracked, dev local)
-└── <svc>.css                             (@import shared + overrides do serviço)
+├── shared -> ../../../../design/shared   (git-tracked symlink, local dev)
+└── <svc>.css                             (@import shared + service overrides)
 ```
 
-### Docker (pre-copy automático)
+### Docker (automatic pre-copy)
 
-O Docker BuildKit não segue symlinks fora do build context. O script `scripts/13-deploy-services` resolve isso automaticamente: antes de cada `docker build` dos serviços frontend ele substitui o symlink por uma cópia real de `design/shared/`, e restaura o symlink logo após.
-
----
-
-## 1. Preferências de design
-
-- Paleta baseada em Google Material You: primária `#1A73E8`, superfícies neutras
-- Suporte obrigatório a dark mode via `[data-theme]` + `prefers-color-scheme`
-- Todos os tokens centralizados em `:root` dentro de `app.css`
-- Tipografia: Roboto para texto, Roboto Mono para código/JSON
-- Border-radius grandes (28px) nos cards, menores (8px) em blocos internos
-- Transições de tema: `250ms ease` em `background-color` e `color`
-- Efeito ripple em botões filled
+Docker BuildKit does not follow symlinks outside the build context. The `scripts/13-deploy-services` script resolves this automatically: before each `docker build` of the frontend services, it replaces the symlink with a real copy of `design/shared/`, and restores the symlink immediately after.
 
 ---
 
-## 2. Validar design sem subir o ambiente
+## 1. Design preferences
 
-### Sandbox (recomendado)
+- Palette based on Google Material You: primary `#1A73E8`, neutral surfaces
+- Mandatory dark mode support via `[data-theme]` + `prefers-color-scheme`
+- All tokens centralized in `:root` inside `app.css`
+- Typography: Roboto for text, Roboto Mono for code/JSON
+- Large border-radius (28px) on cards, smaller (8px) on inner blocks
+- Theme transitions: `250ms ease` on `background-color` and `color`
+- Ripple effect on filled buttons
 
-O arquivo `design/index.html` é um sandbox autocontido com todas as telas (home, test, profile, login), dados mockados e navegação entre views. Os CSS reais dos serviços são carregados via paths absolutos — editar `app.css` ou `login.css` e recarregar o browser já reflete.
+---
 
-**Para mudanças em tokens ou componentes base**, edite `design/shared/tokens.css` ou `design/shared/base.css` diretamente — o efeito é imediato no sandbox sem reiniciar o servidor.
+## 2. Validate design without running the environment
+
+### Sandbox (recommended)
+
+The `design/index.html` file is a self-contained sandbox with all screens (home, test, profile, login), mocked data, and navigation between views. The real service CSS files are loaded via absolute paths — editing `app.css` or `login.css` and reloading the browser reflects the change immediately.
+
+**For changes to tokens or base components**, edit `design/shared/tokens.css` or `design/shared/base.css` directly — the effect is immediate in the sandbox without restarting the server.
 
 ```bash
-# Obrigatório: servir a partir da raiz do repositório, não de design/
-# O Python http.server bloqueia "../" — os paths /services/... só resolvem da raiz
+# Required: serve from the repository root, not from design/
+# Python http.server blocks "../" — /services/... paths only resolve from the root
 python3 -m http.server 8080
 ```
 
-Acessar: **http://localhost:8080/design/**
+Access: **http://localhost:8080/design/**
 
-> Os `@import` dentro dos CSS dos serviços resolvem via os symlinks `app/static/shared -> ../../../../design/shared`, que o Python http.server segue corretamente.
+> The `@import` statements inside service CSS files resolve via the `app/static/shared -> ../../../../design/shared` symlinks, which Python http.server follows correctly.
 
-### O que o sandbox cobre
+### What the sandbox covers
 
-| Tela | Dados mockados |
+| Screen | Mocked data |
 |---|---|
-| `home` | Avatar, nome, email, tenant badge |
-| `test` | 5 test cases com grupos, accordion, run simulado com delay |
-| `profile` | Claims primários (sub, email, name) + claims secundários |
-| `login` | Floating label, validação de email, estado de erro |
+| `home` | Avatar, name, email, tenant badge |
+| `test` | 5 test cases with groups, accordion, simulated run with delay |
+| `profile` | Primary claims (sub, email, name) + secondary claims |
+| `login` | Floating label, email validation, error state |
 
-### Checklist visual
+### Visual checklist
 
 - [ ] Light mode
 - [ ] Dark mode
-- [ ] `prefers-color-scheme: dark` (sem `data-theme`)
-- [ ] Tela estreita (< 480px)
+- [ ] `prefers-color-scheme: dark` (without `data-theme`)
+- [ ] Narrow screen (< 480px)
 
 ---
 
-## 3. Componentes comuns e animações
+## 3. Common components and animations
 
-> **Localização dos componentes compartilhados:** `design/shared/base.css`
-> Componentes exclusivos de cada serviço continuam nos respectivos `<svc>.css`.
+> **Location of shared components:** `design/shared/base.css`
+> Components exclusive to each service remain in their respective `<svc>.css`.
 
-| Componente | Onde vive |
+| Component | Where it lives |
 |---|---|
 | Reset `* { box-sizing }` | `base.css` |
 | `.theme-toggle` (core) | `base.css` |
@@ -98,20 +98,20 @@ Acessar: **http://localhost:8080/design/**
 | `.btn-outlined` | `base.css` |
 | `.logo-section`, `.logo-name` | `base.css` |
 | `@keyframes ripple`, `card-enter` | `base.css` |
-| `.ripple` (element) | CSS do serviço (background varia) |
-| `.card` | CSS do serviço (sombras intencionalmente diferentes) |
+| `.ripple` (element) | Service CSS (background varies) |
+| `.card` | Service CSS (shadows intentionally different) |
 | `.navbar`, `.accordion`, `.claims-table` | `app.css` (tenant-frontend only) |
 
 ### 3.1 Accordion (expand/collapse)
 
-Usado em: `test.html` — lista de casos de teste.
+Used in: `test.html` — test case list.
 
-**Comportamento atual:**
-- Clique no header abre o body (`display: none → block`)
-- Chevron rotaciona 180° (`transition: transform .2s`)
-- `aria-expanded` atualizado para acessibilidade
+**Current behavior:**
+- Click on header opens the body (`display: none → block`)
+- Chevron rotates 180° (`transition: transform .2s`)
+- `aria-expanded` updated for accessibility
 
-**Animação suave (a implementar):**
+**Smooth animation (to implement):**
 
 ```css
 .accordion-body {
@@ -127,48 +127,48 @@ Usado em: `test.html` — lista de casos de teste.
 }
 ```
 
-Substituir `display: none/block` por toggle da classe `.open`.
+Replace `display: none/block` with toggle of the `.open` class.
 
 ### 3.2 Status dot
 
-Indicador de estado de execução de um teste.
+Execution state indicator for a test.
 
-| Classe | Cor | Uso |
+| Class | Color | Use |
 |---|---|---|
-| `.status-idle` | `#dadce0` | Aguardando execução |
-| `.status-pass` | `#34a853` | Passou |
-| `.status-fail` | `#ea4335` | Falhou |
+| `.status-idle` | `#dadce0` | Waiting to run |
+| `.status-pass` | `#34a853` | Passed |
+| `.status-fail` | `#ea4335` | Failed |
 
 ### 3.3 Badge
 
 ```
-.badge-ok      /* verde — HTTP 200 */
-.badge-deny    /* vermelho — HTTP 403/401 */
-.badge-running /* cinza — em execução */
+.badge-ok      /* green — HTTP 200 */
+.badge-deny    /* red — HTTP 403/401 */
+.badge-running /* gray — running */
 ```
 
-### 3.4 Botões
+### 3.4 Buttons
 
-- `.btn-filled`: primário, com ripple e `filter: brightness()`
-- `.btn-outlined`: secundário, hover via `background: var(--color-primary-dim)`
-- `.btn-sm`: modificador de tamanho (padding e font-size reduzidos)
+- `.btn-filled`: primary, with ripple and `filter: brightness()`
+- `.btn-outlined`: secondary, hover via `background: var(--color-primary-dim)`
+- `.btn-sm`: size modifier (reduced padding and font-size)
 
 ### 3.5 Copy button
 
-Ícone clipboard → checkmark por 1500ms via troca do atributo `d` do SVG.
+Clipboard icon → checkmark for 1500ms via swap of the SVG `d` attribute.
 
 ### 3.6 Ripple
 
-Elemento `.ripple` injetado via JS no clique, animado com `scale(0→4) + opacity→0`.
+`.ripple` element injected via JS on click, animated with `scale(0→4) + opacity→0`.
 
 ---
 
-## 4. Captura de GIFs de documentação
+## 4. Documentation GIF capture
 
-### Ferramentas
+### Tools
 
 ```bash
-# GUI — selecionar área e gravar
+# GUI — select area and record
 sudo apt install peek
 
 # CLI
@@ -176,13 +176,13 @@ sudo apt install byzanz
 byzanz-record --duration=4 --x=100 --y=200 --width=600 --height=400 output.gif
 ```
 
-### Convenção de nomes
+### Naming convention
 
 ```
-docs/assets/gifs/<componente>-<comportamento>.gif
+docs/assets/gifs/<component>-<behavior>.gif
 ```
 
-Exemplos:
+Examples:
 
 ```
 accordion-expand.gif
@@ -192,20 +192,20 @@ status-dot-run-all.gif
 copy-btn-feedback.gif
 ```
 
-### GIFs prioritários
+### Priority GIFs
 
-- [ ] `accordion-expand.gif` — clique em um item abre com animação
+- [ ] `accordion-expand.gif` — click on an item opens with animation
 - [ ] `run-all-status.gif` — dots idle → running → pass/fail
-- [ ] `theme-toggle.gif` — transição light/dark
+- [ ] `theme-toggle.gif` — light/dark transition
 - [ ] `copy-btn-feedback.gif` — clipboard → checkmark
 
 ---
 
-## 5. Backlog de melhorias
+## 5. Improvement backlog
 
-| Item | Descrição | Prioridade |
+| Item | Description | Priority |
 |---|---|---|
-| Animação accordion | Substituir `display:none` por `grid-template-rows` | Alta |
-| Skeleton loader | Placeholder animado enquanto testes rodam | Média |
-| Toast de notificação | Feedback após "Run all" concluir | Média |
-| Responsive navbar | Colapsar links em mobile | Baixa |
+| Accordion animation | Replace `display:none` with `grid-template-rows` | High |
+| Skeleton loader | Animated placeholder while tests run | Medium |
+| Toast notification | Feedback after "Run all" completes | Medium |
+| Responsive navbar | Collapse links on mobile | Low |

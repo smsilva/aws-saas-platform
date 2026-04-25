@@ -1,68 +1,68 @@
-# Onboarding de Novo Customer
+# New Customer Onboarding
 
-Este documento descreve os passos para cadastrar um novo tenant na plataforma, incluindo a configuração do IdP no Cognito, o registro no DynamoDB e o deploy do namespace isolado no cluster.
-
----
-
-## Visão geral
-
-Cada tenant é identificado por um ou mais domínios de e-mail. Ao fazer login, o `platform-frontend` extrai o domínio do e-mail, consulta o `discovery service` (DynamoDB) e redireciona para o IdP correto via Cognito.
-
-O onboarding envolve três camadas:
-
-```
-1. IdP no Cognito     — credenciais OAuth do provedor de identidade do customer
-2. DynamoDB           — mapeamento domínio → tenant_id → App Client
-3. Kubernetes         — namespace isolado com Istio auth (RequestAuthentication + AuthorizationPolicy)
-```
+This document describes the steps to register a new tenant on the platform, including IdP configuration in Cognito, registration in DynamoDB, and deployment of the isolated namespace in the cluster.
 
 ---
 
-## Decisão inicial: IdP novo ou existente?
+## Overview
 
-Antes de começar, responda:
+Each tenant is identified by one or more email domains. When logging in, `platform-frontend` extracts the domain from the email, queries the `discovery service` (DynamoDB), and redirects to the correct IdP via Cognito.
 
-> **O customer usa um IdP já cadastrado na plataforma (mesmo Client ID e Client Secret)?**
+Onboarding involves three layers:
 
-| Situação | Caminho |
+```
+1. IdP in Cognito     — OAuth credentials for the customer's identity provider
+2. DynamoDB           — domain → tenant_id → App Client mapping
+3. Kubernetes         — isolated namespace with Istio auth (RequestAuthentication + AuthorizationPolicy)
+```
+
+---
+
+## Initial decision: new IdP or existing?
+
+Before starting, answer:
+
+> **Does the customer use an IdP already registered on the platform (same Client ID and Client Secret)?**
+
+| Situation | Path |
 |---|---|
-| IdP novo (credenciais próprias) | Executar todos os passos abaixo |
-| IdP compartilhado (mesmo Client ID já cadastrado) | Pular o Passo 1; registrar apenas o domínio adicional no DynamoDB apontando para o App Client existente |
+| New IdP (own credentials) | Follow all steps below |
+| Shared IdP (same Client ID already registered) | Skip Step 1; register only the additional domain in DynamoDB pointing to the existing App Client |
 
-O caso de IdP compartilhado está detalhado na seção [Múltiplos domínios no mesmo IdP](#multiplos-dominios-no-mesmo-idp).
+The shared IdP case is detailed in the [Multiple domains on the same IdP](#multiple-domains-on-the-same-idp) section.
 
 ---
 
-## Passo 1 — Configurar o IdP no Cognito
+## Step 1 — Configure the IdP in Cognito
 
-### 1.1 Determinar o tipo de IdP
+### 1.1 Determine the IdP type
 
-| Tipo | `provider-type` na AWS CLI | Quando usar |
+| Type | `provider-type` in AWS CLI | When to use |
 |---|---|---|
-| Google (conta pessoal / Workspace) | `OIDC` com `oidc_issuer=https://accounts.google.com` | Máximo um IdP do tipo `Google` (social) por User Pool — usar OIDC para os demais |
-| Microsoft (contas pessoais MSA) | `OIDC` com issuer GUID fixo `9188040d-6c67-4c5b-b112-36a304b66dad` | Ver `docs/decisoes-tecnicas.md` |
-| Microsoft (Azure AD corporativo / Google Workspace federado via AD) | `OIDC` com `oidc_issuer=https://login.microsoftonline.com/<tenant-id>/v2.0` | Usar o tenant ID real da organização |
-| Qualquer outro provedor OIDC | `OIDC` | Okta, Auth0, Keycloak, etc. |
+| Google (personal account / Workspace) | `OIDC` with `oidc_issuer=https://accounts.google.com` | Maximum one `Google` (social) IdP per User Pool — use OIDC for the others |
+| Microsoft (MSA personal accounts) | `OIDC` with fixed GUID issuer `9188040d-6c67-4c5b-b112-36a304b66dad` | See `docs/decisoes-tecnicas.md` |
+| Microsoft (corporate Azure AD / Google Workspace federated via AD) | `OIDC` with `oidc_issuer=https://login.microsoftonline.com/<tenant-id>/v2.0` | Use the organization's real tenant ID |
+| Any other OIDC provider | `OIDC` | Okta, Auth0, Keycloak, etc. |
 
-### 1.2 Pré-requisitos no provedor de identidade
+### 1.2 Prerequisites at the identity provider
 
-Antes de executar qualquer script, registrar a aplicação no console do provedor e obter:
+Before running any script, register the application in the provider's console and obtain:
 
 - `CLIENT_ID`
 - `CLIENT_SECRET`
-- Redirect URI obrigatória: `https://idp.<domain>/oauth2/idpresponse`
+- Required redirect URI: `https://idp.<domain>/oauth2/idpresponse`
 
-> Para Google, o redirect URI fica em **Authorized redirect URIs** (não em Authorized JavaScript origins). Mudanças levam até 5 minutos para propagar.
+> For Google, the redirect URI goes in **Authorized redirect URIs** (not in Authorized JavaScript origins). Changes take up to 5 minutes to propagate.
 
-### 1.3 Criar o IdP no Cognito
+### 1.3 Create the IdP in Cognito
 
 ```bash
-export CUSTOMER_CLIENT_ID=<client-id do provedor>
+export CUSTOMER_CLIENT_ID=<client-id from the provider>
 export CUSTOMER_CLIENT_SECRET=<client-secret>
 
-idp_name="<NomeIdP-CustomerN>"          # ex: Google-Customer3, AzureAD-Customer4
-oidc_issuer="<issuer do provedor>"
-tenant_id="customerN"                    # ex: customer3
+idp_name="<IdPName-CustomerN>"          # e.g.: Google-Customer3, AzureAD-Customer4
+oidc_issuer="<provider issuer>"
+tenant_id="customerN"                    # e.g.: customer3
 
 aws cognito-idp create-identity-provider \
   --region "${aws_region}" \
@@ -75,7 +75,7 @@ aws cognito-idp create-identity-provider \
     "email=email,name=name"
 ```
 
-### 1.4 Criar o App Client no Cognito
+### 1.4 Create the App Client in Cognito
 
 ```bash
 app_client_id=$(
@@ -95,7 +95,7 @@ app_client_id=$(
 )
 ```
 
-### 1.5 Recuperar o Client Secret do App Client
+### 1.5 Retrieve the App Client Secret
 
 ```bash
 export COGNITO_CUSTOMERX_CLIENT_SECRET=$(
@@ -110,13 +110,13 @@ export COGNITO_CUSTOMERX_CLIENT_SECRET=$(
 
 ---
 
-## Passo 2 — Registrar o domínio no DynamoDB
+## Step 2 — Register the domain in DynamoDB
 
-Cada domínio de e-mail recebe um item no `tenant-registry`. A chave primária é `domain#<domínio>`.
+Each email domain gets an item in `tenant-registry`. The primary key is `domain#<domain>`.
 
 ```bash
-tenant_domain="<domínio do e-mail>"      # ex: empresa.com
-tenant_url="${tenant_id}.${domain}"       # ex: customer3.wasp.silvios.me
+tenant_domain="<email domain>"           # e.g.: empresa.com
+tenant_url="${tenant_id}.${domain}"       # e.g.: customer3.wasp.silvios.me
 
 item=$(cat <<EOF
 {
@@ -142,7 +142,7 @@ aws dynamodb put-item \
   --item "${item}"
 ```
 
-### Verificar
+### Verify
 
 ```bash
 curl "https://discovery.${domain}/tenant?domain=${tenant_domain}"
@@ -150,11 +150,11 @@ curl "https://discovery.${domain}/tenant?domain=${tenant_domain}"
 
 ---
 
-## Passo 3 — Atualizar o callback-handler
+## Step 3 — Update the callback-handler
 
-O `callback-handler` precisa conhecer o Client Secret de cada tenant para trocar o code pelo token.
+The `callback-handler` needs to know each tenant's Client Secret to exchange the code for a token.
 
-Adicionar a nova chave ao Secret existente:
+Add the new key to the existing Secret:
 
 ```bash
 kubectl apply -f - <<EOF
@@ -167,7 +167,7 @@ type: Opaque
 stringData:
   COGNITO_CLIENT_SECRET_CUSTOMER1: "${COGNITO_CLIENT_SECRET_CUSTOMER1}"
   COGNITO_CLIENT_SECRET_CUSTOMER2: "${COGNITO_CUSTOMER2_CLIENT_SECRET}"
-  COGNITO_CLIENT_SECRET_CUSTOMERX: "${COGNITO_CUSTOMERX_CLIENT_SECRET}"   # novo
+  COGNITO_CLIENT_SECRET_CUSTOMERX: "${COGNITO_CUSTOMERX_CLIENT_SECRET}"   # new
   STATE_JWT_SECRET: "${STATE_JWT_SECRET}"
 EOF
 
@@ -177,9 +177,9 @@ kubectl -n auth rollout status deployment/callback-handler --timeout=180s
 
 ---
 
-## Passo 4 — Deploy do namespace do tenant
+## Step 4 — Deploy the tenant namespace
 
-Cada tenant tem um namespace isolado com Istio `RequestAuthentication` + `AuthorizationPolicy`.
+Each tenant gets an isolated namespace with Istio `RequestAuthentication` + `AuthorizationPolicy`.
 
 ```bash
 jwt_issuer="https://cognito-idp.${aws_region}.amazonaws.com/${cognito_user_pool_id}"
@@ -194,7 +194,7 @@ metadata:
   labels:
     istio-injection: enabled
 ---
-# ... Deployment, Service, Gateway, VirtualService da aplicação do tenant ...
+# ... Tenant application Deployment, Service, Gateway, VirtualService ...
 ---
 apiVersion: security.istio.io/v1beta1
 kind: RequestAuthentication
@@ -226,61 +226,61 @@ spec:
 EOF
 ```
 
-O `AuthorizationPolicy` garante que um JWT emitido para outro tenant seja rejeitado com 403 neste namespace — isolamento cruzado por design.
+The `AuthorizationPolicy` ensures that a JWT issued for another tenant is rejected with 403 in this namespace — cross-tenant isolation by design.
 
 ---
 
-## Verificação end-to-end
+## End-to-end verification
 
 ```bash
-# 1. Sem JWT → deve retornar 403
+# 1. No JWT → should return 403
 curl -s -o /dev/null -w '%{http_code}' "https://${tenant_id}.${domain}/get"
 
-# 2. JWT de outro tenant → deve retornar 403
+# 2. JWT from another tenant → should return 403
 curl -s -o /dev/null -w '%{http_code}' \
-  -b "session=<JWT de outro tenant>" \
+  -b "session=<JWT from another tenant>" \
   "https://${tenant_id}.${domain}/get"
 
-# 3. Fluxo completo via browser
-# Acessar https://<domain> → digitar e-mail do novo domínio → autenticar → chegar em <tenant_id>.<domain>
+# 3. Full flow via browser
+# Access https://<domain> → type new domain email → authenticate → arrive at <tenant_id>.<domain>
 ```
 
 ---
 
-## Múltiplos domínios no mesmo IdP
+## Multiple domains on the same IdP
 
-Quando dois ou mais domínios compartilham o mesmo provedor de identidade (mesmo Client ID e Client Secret — por exemplo, grupos empresariais onde todas as empresas estão no mesmo diretório corporativo), **não é necessário criar um novo IdP nem um novo App Client no Cognito**.
+When two or more domains share the same identity provider (same Client ID and Client Secret — for example, corporate groups where all companies are in the same corporate directory), **a new IdP or App Client in Cognito is not needed**.
 
-Neste caso:
+In this case:
 
-### O que muda
+### What changes
 
-| Etapa | Ação |
+| Step | Action |
 |---|---|
-| Passo 1 (IdP + App Client) | **Pular** — reaproveitar o App Client existente do tenant principal |
-| Passo 2 (DynamoDB) | **Executar** — registrar o novo domínio apontando para o `tenant_id` e `app_client_id` existentes |
-| Passo 3 (callback-handler) | **Pular** — o secret já existe |
-| Passo 4 (namespace) | Depende: se o novo domínio pertence ao **mesmo tenant** (mesma aplicação), pular. Se for um tenant lógico separado com namespace próprio, executar com um novo `tenant_id` |
+| Step 1 (IdP + App Client) | **Skip** — reuse the existing App Client from the primary tenant |
+| Step 2 (DynamoDB) | **Execute** — register the new domain pointing to the existing `tenant_id` and `app_client_id` |
+| Step 3 (callback-handler) | **Skip** — the secret already exists |
+| Step 4 (namespace) | Depends: if the new domain belongs to the **same tenant** (same application), skip. If it is a separate logical tenant with its own namespace, execute with a new `tenant_id` |
 
-### Registrar o domínio adicional
+### Register the additional domain
 
 ```bash
-novo_dominio="<segundo domínio>"         # ex: subsidiaria.com
-tenant_id_existente="<tenant existente>" # ex: customer3
-app_client_id_existente="<client_id>"
+new_domain="<second domain>"             # e.g.: subsidiary.com
+existing_tenant_id="<existing tenant>"   # e.g.: customer3
+existing_app_client_id="<client_id>"
 
 item=$(cat <<EOF
 {
-  "pk":                    {"S": "domain#${novo_dominio}"},
-  "tenant_id":             {"S": "${tenant_id_existente}"},
-  "url":                   {"S": "${tenant_id_existente}.${domain}"},
+  "pk":                    {"S": "domain#${new_domain}"},
+  "tenant_id":             {"S": "${existing_tenant_id}"},
+  "url":                   {"S": "${existing_tenant_id}.${domain}"},
   "regions":               {"L": [{"S": "${aws_region}"}]},
-  "cognito_app_client_id": {"S": "${app_client_id_existente}"},
+  "cognito_app_client_id": {"S": "${existing_app_client_id}"},
   "auth": {"M": {
     "type":                  {"S": "oidc"},
     "cognito_user_pool_id":  {"S": "${cognito_user_pool_id}"},
-    "cognito_app_client_id": {"S": "${app_client_id_existente}"},
-    "cognito_idp_name":      {"S": "<idp_name do tenant existente>"}
+    "cognito_app_client_id": {"S": "${existing_app_client_id}"},
+    "cognito_idp_name":      {"S": "<idp_name of the existing tenant>"}
   }},
   "status": {"S": "active"}
 }
@@ -293,42 +293,42 @@ aws dynamodb put-item \
   --item "${item}"
 ```
 
-### Resultado
+### Result
 
-Usuários de ambos os domínios (`empresa.com` e `subsidiaria.com`) são roteados para o mesmo App Client no Cognito, passam pelo mesmo IdP e chegam ao mesmo namespace de aplicação. A Lambda Pre-Token Generation injeta o `custom:tenant_id` baseado no App Client ID — ambos os domínios recebem o mesmo `tenant_id` no JWT.
+Users from both domains (`empresa.com` and `subsidiary.com`) are routed to the same App Client in Cognito, pass through the same IdP, and arrive at the same application namespace. The Pre-Token Generation Lambda injects `custom:tenant_id` based on the App Client ID — both domains receive the same `tenant_id` in the JWT.
 
-> **Atenção:** se os dois domínios precisarem de isolamento lógico (namespaces diferentes, AuthorizationPolicies diferentes), criar um App Client separado para cada tenant lógico, mesmo que compartilhem o IdP. O App Client é a unidade de isolamento no Cognito.
+> **Note:** if the two domains need logical isolation (different namespaces, different AuthorizationPolicies), create a separate App Client for each logical tenant, even if they share the IdP. The App Client is the unit of isolation in Cognito.
 
 ---
 
-## Referência rápida — checklist de onboarding
+## Quick reference — onboarding checklist
 
 ```
-[ ] Registrar a aplicação no console do provedor de identidade
-    [ ] Obter CLIENT_ID e CLIENT_SECRET
-    [ ] Adicionar redirect URI: https://idp.<domain>/oauth2/idpresponse
+[ ] Register the application in the identity provider console
+    [ ] Obtain CLIENT_ID and CLIENT_SECRET
+    [ ] Add redirect URI: https://idp.<domain>/oauth2/idpresponse
 
-[ ] Passo 1 — Cognito (pular se IdP já existe)
-    [ ] Criar IdP (create-identity-provider)
-    [ ] Criar App Client (create-user-pool-client)
-    [ ] Salvar COGNITO_CUSTOMERX_CLIENT_SECRET
+[ ] Step 1 — Cognito (skip if IdP already exists)
+    [ ] Create IdP (create-identity-provider)
+    [ ] Create App Client (create-user-pool-client)
+    [ ] Save COGNITO_CUSTOMERX_CLIENT_SECRET
 
-[ ] Passo 2 — DynamoDB
-    [ ] Registrar cada domínio de e-mail do tenant (put-item)
-    [ ] Verificar: curl discovery/tenant?domain=<domínio>
+[ ] Step 2 — DynamoDB
+    [ ] Register each tenant email domain (put-item)
+    [ ] Verify: curl discovery/tenant?domain=<domain>
 
-[ ] Passo 3 — callback-handler
-    [ ] Adicionar COGNITO_CLIENT_SECRET_CUSTOMERX ao Secret (pular se IdP compartilhado)
-    [ ] Reiniciar deployment callback-handler
+[ ] Step 3 — callback-handler
+    [ ] Add COGNITO_CLIENT_SECRET_CUSTOMERX to the Secret (skip if shared IdP)
+    [ ] Restart callback-handler deployment
 
-[ ] Passo 4 — Kubernetes
-    [ ] Criar namespace com istio-injection: enabled
-    [ ] Deploy da aplicação do tenant
-    [ ] RequestAuthentication (validar JWT Cognito)
+[ ] Step 4 — Kubernetes
+    [ ] Create namespace with istio-injection: enabled
+    [ ] Deploy tenant application
+    [ ] RequestAuthentication (validate Cognito JWT)
     [ ] AuthorizationPolicy (custom:tenant_id == "<tenant_id>")
 
-[ ] Verificação
-    [ ] Sem JWT → 403
-    [ ] JWT de outro tenant → 403
-    [ ] Fluxo completo via browser
+[ ] Verification
+    [ ] No JWT → 403
+    [ ] JWT from another tenant → 403
+    [ ] Full flow via browser
 ```

@@ -1,48 +1,48 @@
-# seguranca/ — Segurança
+# seguranca/ — Security
 
-## O que vive aqui
+## What lives here
 
-- Índice consolidado de issues (`index.md`)
-- Issues individuais linkadas em `../security-issues/SEC-NNN.md`
+- Consolidated issues index (`index.md`)
+- Individual issues linked in `../security-issues/SEC-NNN.md`
 
-## Issue pontual vs change estrutural
+## Point issue vs structural change
 
-| Situação | Use |
+| Situation | Use |
 |---|---|
-| Bug/misconfiguration em script ou config existente | Issue em `../security-issues/SEC-NNN.md` |
-| Hardening que altera arquitetura ou processo | Change em `../well-architected-framework/security/changes/` |
-| Fix que fecha uma issue existente | Change com referência ao SEC-NNN no `proposal.md` |
+| Bug/misconfiguration in an existing script or config | Issue in `../security-issues/SEC-NNN.md` |
+| Hardening that changes architecture or process | Change in `../well-architected-framework/security/changes/` |
+| Fix that closes an existing issue | Change referencing the SEC-NNN in `proposal.md` |
 
-## Abrir uma nova issue de segurança
+## Opening a new security issue
 
-1. Criar `../security-issues/sec-NNN.md` com: severidade, vetor de ataque, status
-2. Adicionar entrada em `index.md`
-3. Se o fix requer uma change estrutural, criar em
-   `../well-architected-framework/security/changes/<nome>/`
+1. Create `../security-issues/sec-NNN.md` with: severity, attack vector, status
+2. Add entry in `index.md`
+3. If the fix requires a structural change, create it in
+   `../well-architected-framework/security/changes/<name>/`
 
-## Fechar uma issue
+## Closing an issue
 
-1. Atualizar `status` em `../security-issues/SEC-NNN.md` → `Resolvido`
-2. Atualizar linha na tabela em `index.md`
-3. Se havia uma change associada, arquivá-la (ver playbook abaixo)
+1. Update `status` in `../security-issues/SEC-NNN.md` → `Resolved`
+2. Update the row in the table in `index.md`
+3. If there was an associated change, archive it (see playbook below)
 
-## Propor uma change de segurança
+## Proposing a security change
 
-1. Verificar `../well-architected-framework/security/changes/` — pode já existir
-2. Criar `../well-architected-framework/security/changes/<nome-kebab-case>/`
-   com `proposal.md` e `tasks.md`
-3. Referenciar o SEC-NNN relacionado no `proposal.md`
+1. Check `../well-architected-framework/security/changes/` — it may already exist
+2. Create `../well-architected-framework/security/changes/<kebab-case-name>/`
+   with `proposal.md` and `tasks.md`
+3. Reference the related SEC-NNN in `proposal.md`
 
-## Playbook de fechamento de change
+## Change closing playbook
 
-1. Atualizar status das issues resolvidas em `../security-issues/` e `index.md`
-2. `mv ../well-architected-framework/security/changes/<nome> .../archive/YYYY-MM-<nome>`
-3. Change cancelada: sufixo `-cancelled`; nota em `proposal.md`
+1. Update status of resolved issues in `../security-issues/` and `index.md`
+2. `mv ../well-architected-framework/security/changes/<name> .../archive/YYYY-MM-<name>`
+3. Cancelled change: `-cancelled` suffix; note in `proposal.md`
 
-## Critérios de severidade
+## Severity criteria
 
-| Severidade | Critério |
+| Severity | Criterion |
 |---|---|
-| Alto | Comprometimento direto sem condições adicionais |
-| Médio | Vetor viável com condições adicionais (SSRF, role comprometida) |
-| Baixo | Superfície aumentada, mitigada por outras camadas |
+| High | Direct compromise without additional conditions |
+| Medium | Viable vector with additional conditions (SSRF, compromised role) |
+| Low | Increased attack surface, mitigated by other layers |

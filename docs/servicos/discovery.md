@@ -1,27 +1,27 @@
 # Discovery Service
 
-> Dado um domínio de e-mail, retorna a configuração do tenant correspondente consultando a tabela DynamoDB `tenant-registry`.
+> Given an email domain, returns the corresponding tenant configuration by querying the DynamoDB `tenant-registry` table.
 
-## Responsabilidade
+## Responsibility
 
-Única responsabilidade: mapear `domínio de e-mail → TenantConfig`. É chamado por:
+Single responsibility: map `email domain → TenantConfig`. Called by:
 
-- `platform-frontend` — ao submeter o formulário de login, para descobrir qual IdP usar
-- `callback-handler` — para validar que o domínio do token pertence ao tenant esperado
+- `platform-frontend` — when the login form is submitted, to discover which IdP to use
+- `callback-handler` — to validate that the token's domain belongs to the expected tenant
 
 ## API
 
 ### `GET /tenant`
 
-Retorna a configuração do tenant para o domínio informado.
+Returns the tenant configuration for the given domain.
 
-**Parâmetros:**
+**Parameters:**
 
-| Parâmetro | Tipo | Obrigatório | Descrição |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `domain` | string (query) | sim | Domínio do e-mail (ex: `customer1.com`) |
+| `domain` | string (query) | yes | Email domain (e.g. `customer1.com`) |
 
-**Respostas:**
+**Responses:**
 
 === "200 OK"
 
@@ -49,71 +49,71 @@ Retorna a configuração do tenant para o domínio informado.
 {"status": "ok"}
 ```
 
-## Modelo TenantConfig
+## TenantConfig model
 
-Definido em `services/discovery/app/models.py`:
+Defined in `services/discovery/app/models.py`:
 
-| Campo | Tipo | Descrição |
+| Field | Type | Description |
 |---|---|---|
-| `tenant_id` | `str` | Identificador único do tenant (ex: `customer1`) |
-| `tenant_url` | `str` | Hostname do tenant sem scheme (ex: `customer1.wasp.silvios.me`) |
-| `client_id` | `str` | Cognito App Client ID do tenant |
-| `idp_name` | `str` | Nome do IdP configurado no Cognito (ex: `Google`, `MicrosoftAD-Customer2`) |
-| `idp_pool_id` | `str` | ID do User Pool / Pool do IdP |
+| `tenant_id` | `str` | Unique tenant identifier (e.g. `customer1`) |
+| `tenant_url` | `str` | Tenant hostname without scheme (e.g. `customer1.wasp.silvios.me`) |
+| `client_id` | `str` | Cognito App Client ID for the tenant |
+| `idp_name` | `str` | Name of the IdP configured in Cognito (e.g. `Google`, `MicrosoftAD-Customer2`) |
+| `idp_pool_id` | `str` | User Pool ID / IdP Pool ID |
 
-## Repositório DynamoDB
+## DynamoDB repository
 
-Implementado em `services/discovery/app/repository.py` (`DynamoDBTenantRepository`).
+Implemented in `services/discovery/app/repository.py` (`DynamoDBTenantRepository`).
 
-**Chave primária:** `pk = "domain#<domínio>"` (lowercase)
+**Primary key:** `pk = "domain#<domain>"` (lowercase)
 
-Mapeamento dos atributos DynamoDB → `TenantConfig`:
+DynamoDB attribute to `TenantConfig` mapping:
 
-| Atributo DynamoDB | Campo no modelo | Observação |
+| DynamoDB attribute | Model field | Notes |
 |---|---|---|
-| `pk` | — | Chave de lookup: `domain#customer1.com` |
+| `pk` | — | Lookup key: `domain#customer1.com` |
 | `tenant_id` | `tenant_id` | |
 | `url` | `tenant_url` | |
 | `cognito_app_client_id` | `client_id` | |
-| `auth.M.cognito_idp_name` | `idp_name` | Atributo aninhado no mapa `auth` |
-| `auth.M.cognito_user_pool_id` | `idp_pool_id` | Atributo aninhado no mapa `auth` |
+| `auth.M.cognito_idp_name` | `idp_name` | Nested attribute in the `auth` map |
+| `auth.M.cognito_user_pool_id` | `idp_pool_id` | Nested attribute in the `auth` map |
 
-!!! warning "DynamoDB — palavras reservadas"
-    `auth` é uma palavra reservada no DynamoDB. Em `--update-expression`, use alias `#auth` com `--expression-attribute-names '{"#auth": "auth"}'`. Ver [gotchas operacionais](../operacoes/index.md#gotchas-operacionais).
+!!! warning "DynamoDB — reserved words"
+    `auth` is a reserved word in DynamoDB. In `--update-expression`, use alias `#auth` with `--expression-attribute-names '{"#auth": "auth"}'`. See [operational gotchas](../operacoes/index.md#operational-gotchas).
 
 ## IRSA
 
-O serviço usa IRSA para acessar o DynamoDB sem credenciais hardcoded no container.
+The service uses IRSA to access DynamoDB without hardcoded credentials in the container.
 
-Permissão necessária: `dynamodb:GetItem` na tabela `tenant-registry`.
+Required permission: `dynamodb:GetItem` on the `tenant-registry` table.
 
-O service account e a IAM role são provisionados pelo script `13-deploy-services`.
+The service account and IAM role are provisioned by script `13-deploy-services`.
 
-## Variáveis de ambiente
+## Environment variables
 
-| Variável | Descrição |
+| Variable | Description |
 |---|---|
-| `AWS_REGION` | Região AWS onde a tabela DynamoDB está |
-| `DYNAMODB_TABLE` | Nome da tabela (padrão: `tenant-registry`) |
+| `AWS_REGION` | AWS region where the DynamoDB table is |
+| `DYNAMODB_TABLE` | Table name (default: `tenant-registry`) |
 
-## Namespace e deploy K8s
+## Kubernetes namespace and deploy
 
 - **Namespace:** `discovery`
-- **Imagem:** `silviosilva/wasp-discovery:<sha>`
-- **Service account:** vinculado à IAM role via IRSA
+- **Image:** `silviosilva/wasp-discovery:<sha>`
+- **Service account:** bound to the IAM role via IRSA
 
-## Cache
+## Caching
 
-O repositório usa `@lru_cache` no nível de fábrica do cliente boto3, mas **não faz cache** dos resultados de cada consulta. Cada chamada `GET /tenant` resulta em um `GetItem` no DynamoDB.
+The repository uses `@lru_cache` at the boto3 client factory level, but **does not cache** individual query results. Each `GET /tenant` call results in a `GetItem` against DynamoDB.
 
-A decisão de adicionar cache em memória (TTL, invalidação) está em aberto. Ver [decisoes-tecnicas.md](../decisoes-tecnicas.md).
+The decision to add in-memory caching (TTL, invalidation) is open. See [decisoes-tecnicas.md](../decisoes-tecnicas.md).
 
-## Testes
+## Tests
 
 ```bash
 cd services/discovery
 .venv/bin/pytest tests/ -v
 ```
 
-- `test_tenant_api.py` — testa os endpoints HTTP com `TestClient` do FastAPI
-- `test_tenant_repository.py` — testa `InMemoryTenantRepository` e `DynamoDBTenantRepository` (com mock do cliente boto3)
+- `test_tenant_api.py` — tests HTTP endpoints with FastAPI `TestClient`
+- `test_tenant_repository.py` — tests `InMemoryTenantRepository` and `DynamoDBTenantRepository` (with mocked boto3 client)

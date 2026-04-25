@@ -1,33 +1,30 @@
 # docs/ — Memory Bank
 
-## Estrutura
+## Structure
 
-| Pasta | Conteúdo |
+| Folder | Content |
 |---|---|
-| `arquitetura/` | Topologia, fluxo de tráfego, decisões técnicas, specs formais |
-| `well-architected-framework/` | Roadmap WAF — 17 changes organizadas por pilar |
-| `seguranca/` | Issues de segurança abertas/fechadas, revisões |
-| `operacoes/` | Passo a passo de provisionamento, scripts 01-17 |
-| `servicos/` | Documentação dos 3 microserviços Python/FastAPI |
-| `security-issues/` | Issues individuais SEC-NNN (pontual, não-estrutural) |
+| `arquitetura/` | Topology, traffic flow, technical decisions, formal specs |
+| `well-architected-framework/` | WAF Roadmap — 17 changes organized by pillar |
+| `seguranca/` | Open/closed security issues, reviews |
+| `operacoes/` | Provisioning step-by-step, scripts 01-17 |
+| `servicos/` | Documentation for the 3 Python/FastAPI microservices |
+| `security-issues/` | Individual issues SEC-NNN (point-in-time, non-structural) |
 
-## Regra geral
+## General rule
 
-Qualquer mudança significativa em qualquer pasta de `docs/` deve ser proposta
-como uma change antes de ser executada. Veja o CLAUDE.md da pasta alvo.
+Any significant change in any `docs/` folder must be proposed as a change before being executed. See the CLAUDE.md of the target folder.
 
-**Mudança significativa:** reorganização, nova área temática, alteração de
-convenção, merge ou remoção de documentos.
+**Significant change:** reorganization, new thematic area, convention change, document merge or removal.
 
-**Correção direta (sem change):** typo, atualização de valor, nova linha
-em tabela existente.
+**Direct fix (no change needed):** typo, value update, new row in an existing table.
 
-## Antes de qualquer trabalho em docs/
+## Before any work in docs/
 
-1. Ler o CLAUDE.md da pasta alvo
-2. Verificar `changes/` em andamento nessa pasta
-3. Verificar se há spec formal (`*-spec.md`) relevante ao tema
+1. Read the CLAUDE.md of the target folder
+2. Check `changes/` in progress for that folder
+3. Check if there is a formal spec (`*-spec.md`) relevant to the topic
 
-## Convenção de datas
+## Date convention
 
-Sempre absolutas. "Quinta" → "2026-04-24".
+Always absolute. "Thursday" → "2026-04-24".

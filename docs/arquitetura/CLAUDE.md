@@ -1,37 +1,35 @@
-# arquitetura/ — Documentação de Arquitetura
+# arquitetura/ — Architecture Documentation
 
-## O que vive aqui
+## What lives here
 
-- Topologia e fluxo de tráfego (`index.md`, `fluxo-trafego.md`)
-- Specs formais de componentes (`*-spec.md`) — formato BDD com cláusulas SHALL
-- Links para `../decisoes-tecnicas.md` e `../fluxo-autenticacao-multitenant.md`
+- Topology and traffic flow (`index.md`, `fluxo-trafego.md`)
+- Formal component specs (`*-spec.md`) — natural language requirements documents
+- Links to `../decisoes-tecnicas.md` and `../fluxo-autenticacao-multitenant.md`
 
-## Como propor uma change
+## How to propose a change
 
-1. Criar `arquitetura/changes/<nome-kebab-case>/proposal.md` e `tasks.md`
-2. Verificar `changes/` antes — evitar duplicação
-3. Verificar `changes/archive/` para entender decisões anteriores
+1. Create `arquitetura/changes/<kebab-case-name>/proposal.md` and `tasks.md`
+2. Check `changes/` first — avoid duplication
+3. Check `changes/archive/` to understand previous decisions
 
 ## ADR vs change
 
-| Situação | Use |
+| Situation | Use |
 |---|---|
-| Decisão de design tomada, precisa ser registrada | Entrada em `../decisoes-tecnicas.md` |
-| Mudança na arquitetura que requer implementação | Change em `changes/` |
-| Alteração em topologia, routing ou fluxo de tráfego | Change em `changes/` |
-| Atualização de diagrama por mudança já executada | Edit direto (sem change) |
+| Design decision taken, needs to be recorded | Entry in `../decisoes-tecnicas.md` |
+| Architecture change requiring implementation | Change in `changes/` |
+| Topology, routing, or traffic flow alteration | Change in `changes/` |
+| Diagram update for an already-executed change | Direct edit (no change) |
 
-## Playbook de fechamento de change
+## Change closing playbook
 
-1. Mover conhecimento permanente para:
-   - `index.md` ou `fluxo-trafego.md` (topologia/routing)
-   - `../decisoes-tecnicas.md` (decisão de design)
-   - `*-spec.md` correspondente (requisito formal)
-2. `mv changes/<nome> changes/archive/YYYY-MM-<nome>`
-3. Change cancelada: mover para archive com sufixo `-cancelled`; adicionar nota
-   em `proposal.md` explicando o motivo
+1. Move permanent knowledge to:
+   - `index.md` or `fluxo-trafego.md` (topology/routing)
+   - `../decisoes-tecnicas.md` (design decision)
+   - corresponding `*-spec.md` (formal requirement)
+2. `mv changes/<name> changes/archive/YYYY-MM-<name>`
+3. Cancelled change: move to archive with `-cancelled` suffix; add note in `proposal.md` explaining the reason
 
-## Specs formais (`*-spec.md`)
+## Formal specs (`*-spec.md`)
 
-Contêm requisitos BDD (cláusulas SHALL + cenários). São mais precisos que a
-documentação narrativa. Ao alterar arquitetura, atualizar o spec correspondente.
+Contain natural language requirements descriptions. They are more precise than narrative documentation. When changing architecture, update the corresponding spec.

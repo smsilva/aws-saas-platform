@@ -1,8 +1,8 @@
-# Arquitetura
+# Architecture
 
-O lab provisiona uma plataforma SaaS multi-tenant sobre EKS. A camada de infraestrutura cobre VPC, ALB, WAF e Istio. A camada de autenticação adiciona Cognito como hub de federação de identidade, DynamoDB para o registro de tenants, e três microserviços que orquestram o fluxo de login.
+The lab provisions a multi-tenant SaaS platform on EKS. The infrastructure layer covers VPC, ALB, WAF, and Istio. The authentication layer adds Cognito as an identity federation hub, DynamoDB for tenant registry, and three microservices that orchestrate the login flow.
 
-## Diagrama de topologia
+## Topology diagram
 
 ```
        sara@customer1.com                        motoko@customer2.com
@@ -29,30 +29,30 @@ O lab provisiona uma plataforma SaaS multi-tenant sobre EKS. A camada de infraes
 customer1-us-east-1  customer1-us-west-1         customer2-ap-east-1
 ```
 
-## Subdomínios e roteamento
+## Subdomains and routing
 
-| Subdomínio | Destino | Namespace K8s | Via |
+| Subdomain | Destination | K8s Namespace | Via |
 |---|---|---|---|
 | `wasp.silvios.me` | platform-frontend | `platform` | ALB → Istio |
 | `idp.wasp.silvios.me` | Cognito Hosted UI | — | CloudFront (Azure DNS CNAME) |
 | `auth.wasp.silvios.me` | callback-handler | `auth` | ALB → Istio |
 | `discovery.wasp.silvios.me` | discovery service | `discovery` | ALB → Istio |
-| `customer1.wasp.silvios.me` | app do tenant | `customer1` | ALB → Istio |
+| `customer1.wasp.silvios.me` | tenant app | `customer1` | ALB → Istio |
 
 !!! note "DNS"
-    O domínio `wasp.silvios.me` é gerenciado em **Azure DNS** (subscription `wasp-sandbox`, resource group `wasp-foundation`), não no Route 53. Os scripts usam `az network dns record-set` em vez de `aws route53`.
+    The domain `wasp.silvios.me` is managed in **Azure DNS** (subscription `wasp-sandbox`, resource group `wasp-foundation`), not in Route 53. Scripts use `az network dns record-set` instead of `aws route53`.
 
-## Recursos principais
+## Key resources
 
-| Recurso | Identificador |
+| Resource | Identifier |
 |---|---|
-| Cluster EKS | `wasp-calm-crow-ndx4` |
-| Região | `us-east-1` |
+| EKS Cluster | `wasp-calm-crow-ndx4` |
+| Region | `us-east-1` |
 | VPC | `vpc-03cb9d83815b52ee1` |
-| Certificado ACM | `arn:aws:acm:us-east-1:221047292361:certificate/59ab7614-fa1b-4dba-9f43-7c775cfa5bac` |
+| ACM Certificate | `arn:aws:acm:us-east-1:221047292361:certificate/59ab7614-fa1b-4dba-9f43-7c775cfa5bac` |
 
-## Páginas desta seção
+## Pages in this section
 
-- [Fluxo de Tráfego](fluxo-trafego.md) — detalhes da stack ALB → WAF → Istio → App
-- [Autenticação Multi-tenant](../fluxo-autenticacao-multitenant.md) — fluxo de login, Cognito, DynamoDB e isolamento JWT
-- [Decisões Técnicas](../decisoes-tecnicas.md) — trade-offs e backlog de decisões abertas
+- [Traffic Flow](fluxo-trafego.md) — details of the ALB → WAF → Istio → App stack
+- [Multi-tenant Authentication](../fluxo-autenticacao-multitenant.md) — login flow, Cognito, DynamoDB, and JWT isolation
+- [Technical Decisions](../decisoes-tecnicas.md) — trade-offs and open decision backlog

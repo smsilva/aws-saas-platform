@@ -1,59 +1,59 @@
-# Operações
+# Operations
 
-Esta seção cobre o ciclo de vida completo do lab: provisionamento inicial (scripts 01–17), adição de novos tenants e teardown do ambiente.
+This section covers the full lab lifecycle: initial provisioning (scripts 01–17), adding new tenants, and environment teardown.
 
-## Scripts disponíveis
+## Available scripts
 
-Todos os scripts ficam em `scripts/`. A configuração global está em `scripts/env.conf`.
+All scripts are in `scripts/`. Global configuration is in `scripts/env.conf`.
 
-| Script | O que faz |
+| Script | What it does |
 |---|---|
-| `01-create-vpc` | VPC, subnets públicas/privadas, IGW, NAT Gateway, route tables |
-| `02-create-cluster` | Cluster EKS + node group via eksctl |
-| `03-configure-access` | EKS Access API + `AmazonEKSClusterAdminPolicy` para o caller IAM |
-| `04-install-alb-controller` | Helm + IRSA para o AWS Load Balancer Controller |
+| `01-create-vpc` | VPC, public/private subnets, IGW, NAT Gateway, route tables |
+| `02-create-cluster` | EKS cluster + node group via eksctl |
+| `03-configure-access` | EKS Access API + `AmazonEKSClusterAdminPolicy` for the caller IAM |
+| `04-install-alb-controller` | Helm + IRSA for the AWS Load Balancer Controller |
 | `05-install-istio` | Helm: `istio/base` + `istiod` + `istio/gateway` |
-| `06-import-certificate-acm` | Importa o certificado Let's Encrypt wildcard no ACM |
-| `07-configure-alb-ingress` | Recurso `Ingress` + `IngressClass` → provisiona o ALB |
-| `08-deploy-sample-app` | `httpbin` no namespace `sample` para validação do fluxo |
-| `09-configure-waf` | WAF WebACL com regras gerenciadas + associação ao ALB |
-| `10-create-dynamodb` | Tabela DynamoDB `tenant-registry` + item de exemplo (customer1) |
-| `11-create-cognito` | User Pool, Google IdP, App Client, Lambda Pre-Token Generation |
-| `12-configure-dns-cognito` | Custom domain do Cognito (`idp.wasp.silvios.me`) + CNAME no Azure DNS |
-| `13-deploy-services` | Build/push Docker Hub, IRSA do discovery, deploy dos 4 namespaces K8s |
-| `14-configure-istio-auth` | `RequestAuthentication` + `AuthorizationPolicy` no namespace `customer1` |
-| `15-configure-waf-ratelimit` | Rate limiting WAF para `/login` e `/callback` |
-| `configure-idps` | Registra IdP (Google ou Microsoft) + App Client + DynamoDB para um tenant |
-| `17-deploy-customer2` | Deploy do namespace `customer2` com autenticação Microsoft |
-| `destroy` | Remove todos os recursos na ordem inversa |
-| `destroy-auth` | Remove apenas a stack de autenticação (Cognito, DynamoDB, serviços) |
+| `06-import-certificate-acm` | Imports the wildcard Let's Encrypt certificate into ACM |
+| `07-configure-alb-ingress` | `Ingress` + `IngressClass` resource → provisions the ALB |
+| `08-deploy-sample-app` | `httpbin` in the `sample` namespace to validate the traffic flow |
+| `09-configure-waf` | WAF WebACL with managed rules + association to the ALB |
+| `10-create-dynamodb` | DynamoDB `tenant-registry` table + example item (customer1) |
+| `11-create-cognito` | User Pool, Google IdP, App Client, Pre-Token Generation Lambda |
+| `12-configure-dns-cognito` | Cognito custom domain (`idp.wasp.silvios.me`) + CNAME in Azure DNS |
+| `13-deploy-services` | Docker Hub build/push, discovery IRSA, deploy of 4 K8s namespaces |
+| `14-configure-istio-auth` | `RequestAuthentication` + `AuthorizationPolicy` in the `customer1` namespace |
+| `15-configure-waf-ratelimit` | WAF rate limiting for `/login` and `/callback` |
+| `configure-idps` | Registers IdP (Google or Microsoft) + App Client + DynamoDB for a tenant |
+| `17-deploy-customer2` | Deploy of the `customer2` namespace with Microsoft authentication |
+| `destroy` | Removes all resources in reverse order |
+| `destroy-auth` | Removes only the authentication stack (Cognito, DynamoDB, services) |
 
-!!! warning "Script pendente"
-    `07b-configure-global-accelerator` — deve ser executado entre os scripts 07 e 08. Provisiona dois IPs anycast estáticos (Global Accelerator → ALB) para o apex `wasp.silvios.me`, cujos IPs do ALB são rotativos e não suportam A records estáticos.
+!!! warning "Pending script"
+    `07b-configure-global-accelerator` — must be run between scripts 07 and 08. Provisions two static anycast IPs (Global Accelerator → ALB) for the `wasp.silvios.me` apex, whose ALB IPs are rotational and do not support static A records.
 
-## Gotchas operacionais
+## Operational gotchas
 
-!!! warning "`tenants.json` deve ter valores reais do Cognito"
-    `services/discovery/app/data/tenants.json` é fonte de dados estática. Ao reprovisionar o Cognito, atualizar `client_id` e `idp_pool_id` antes do build, fazer commit e rebuild com nova tag SHA.
+!!! warning "`tenants.json` must have real Cognito values"
+    `services/discovery/app/data/tenants.json` is a static data source. After reprovisioning Cognito, update `client_id` and `idp_pool_id` before the build, commit, and rebuild with a new SHA tag.
 
-!!! warning "`COGNITO_DOMAIN` sem `https://`"
-    No ConfigMap `platform-frontend-config`, o campo `COGNITO_DOMAIN` deve ser só o hostname (`idp.wasp.silvios.me`). O código em `auth.py` já adiciona o scheme — colocar a URL completa gera `https://https://idp...`.
+!!! warning "`COGNITO_DOMAIN` without `https://`"
+    In the `platform-frontend-config` ConfigMap, the `COGNITO_DOMAIN` field must be just the hostname (`idp.wasp.silvios.me`). The code in `auth.py` already adds the scheme — putting the full URL generates `https://https://idp...`.
 
-!!! warning "DynamoDB — palavras reservadas em `--update-expression`"
-    Atributos com nomes reservados (ex: `auth`, `name`, `status`) causam `ValidationException`. Usar `--expression-attribute-names` com alias `#`:
+!!! warning "DynamoDB — reserved words in `--update-expression`"
+    Attributes with reserved names (e.g. `auth`, `name`, `status`) cause `ValidationException`. Use `--expression-attribute-names` with a `#` alias:
     ```bash
     --update-expression 'SET #auth.field = :val' \
     --expression-attribute-names '{"#auth": "auth"}'
     ```
 
-!!! warning "WAFv2 — `--id` exige UUID, não name"
+!!! warning "WAFv2 — `--id` requires UUID, not name"
     ```bash
-    # CORRETO — $NF extrai o UUID (último segmento do ARN)
+    # CORRECT — $NF extracts the UUID (last segment of the ARN)
     web_acl_id="$(echo "${web_acl_arn}" | awk -F'/' '{print $NF}')"
     ```
 
-## Páginas desta seção
+## Pages in this section
 
-- [Passo a Passo](passo-a-passo.md) — execução detalhada dos scripts 01–17
-- [Onboarding de Customer](../onboarding-novo-customer.md) — como adicionar um novo tenant
-- [Destruir o Lab](destruir-lab.md) — teardown completo e parcial
+- [Step-by-Step](passo-a-passo.md) — detailed execution of scripts 01–17
+- [Customer Onboarding](../onboarding-novo-customer.md) — how to add a new tenant
+- [Destroy the Lab](destruir-lab.md) — full and partial teardown

@@ -1,35 +1,35 @@
-# Arquitetura de Autenticação Multi-tenant
+# Multi-Tenant Authentication Architecture
 
-> **Status:** Em revisão  
-> **Contexto:** Complementa o lab EKS com ALB + Istio Gateway (`README.md`), descrevendo o design do fluxo de login para uma plataforma SaaS multi-tenant com suporte a múltiplos provedores de identidade (IdP).
-
----
-
-## Visão geral
-
-A plataforma `wasp.silvios.me` serve múltiplos tenants, cada um com seu próprio subdomínio e, potencialmente, seu próprio método de autenticação. O desafio central é: **como emitir um token padronizado para a plataforma independente de qual IdP o tenant usa?**
-
-**Solução:** Cognito como camada de federação e normalização. Toda autenticação passa pelo Cognito, que federa com o IdP do tenant (Google, Microsoft, Okta, Auth0, Keycloak). A plataforma sempre recebe um JWT Cognito com claims padronizados — nunca o token do IdP upstream.
+> **Status:** Under review  
+> **Context:** Complements the EKS lab with ALB + Istio Gateway (`README.md`), describing the login flow design for a multi-tenant SaaS platform with support for multiple identity providers (IdP).
 
 ---
 
-## Componentes adicionais ao lab
+## Overview
 
-| Componente | Tipo | Papel |
+The `wasp.silvios.me` platform serves multiple tenants, each with its own subdomain and, potentially, its own authentication method. The central challenge is: **how to issue a standardized token for the platform regardless of which IdP the tenant uses?**
+
+**Solution:** Cognito as the federation and normalization layer. All authentication passes through Cognito, which federates with the tenant's IdP (Google, Microsoft, Okta, Auth0, Keycloak). The platform always receives a Cognito JWT with standardized claims — never the upstream IdP token.
+
+---
+
+## Additional components
+
+| Component | Type | Role |
 |---|---|---|
-| AWS Cognito User Pool | AWS | Hub de federação e normalização de tokens |
-| Cognito App Client (por tenant) | AWS | Configuração do IdP por tenant |
-| Cognito Hosted UI | AWS | UI de login em `auth.wasp.silvios.me` |
-| Cognito Pre-Token Generation Lambda | AWS | Injeta `tenant_id` no JWT com base no App Client — não pode ser forjado pelo cliente |
-| DynamoDB Global Table `tenant-registry` | AWS | Lookup: domínio de e-mail → config do tenant |
-| DynamoDB Global Table `tenant-idp-config` | AWS | Configuração sensível do IdP por tenant |
-| AWS Secrets Manager | AWS | Client secrets dos IdPs externos |
-| Discovery Service | Kubernetes | Microserviço que consulta o DynamoDB via IRSA |
-| Callback Handler | Kubernetes/Lambda | Troca code por tokens, emite cookie de sessão |
+| AWS Cognito User Pool | AWS | Federation hub and token normalization |
+| Cognito App Client (per tenant) | AWS | Per-tenant IdP configuration |
+| Cognito Hosted UI | AWS | Login UI at `auth.wasp.silvios.me` |
+| Cognito Pre-Token Generation Lambda | AWS | Injects `tenant_id` into the JWT based on the App Client — cannot be forged by the client |
+| DynamoDB Global Table `tenant-registry` | AWS | Lookup: email domain → tenant config |
+| DynamoDB Global Table `tenant-idp-config` | AWS | Sensitive IdP configuration per tenant |
+| AWS Secrets Manager | AWS | External IdP client secrets |
+| Discovery Service | Kubernetes | Microservice that queries DynamoDB via IRSA |
+| Callback Handler | Kubernetes/Lambda | Exchanges code for tokens, issues session cookie |
 
 ---
 
-## Arquitetura do Cognito como IdP hub
+## Cognito as IdP hub
 
 ```
                     ┌─────────────────────────────────┐
@@ -40,20 +40,20 @@ A plataforma `wasp.silvios.me` serve múltiplos tenants, cada um com seu própri
                     │  App Client: customer3  ────────┼──► Okta OIDC
                     │  App Client: customer4  ────────┼──► Auth0 OIDC
                     │  App Client: customer5  ────────┼──► Keycloak OIDC/SAML
-                    │  App Client: customer6  ────────┼──► Cognito nativo
+                    │  App Client: customer6  ────────┼──► Native Cognito
                     └─────────────────────────────────┘
                                     │
-                          JWT Cognito (normalizado)
+                          JWT Cognito (normalized)
                                     │
                     ┌───────────────▼──────────────────┐
                     │   Istio RequestAuthentication    │
-                    │   JWKS: Cognito (único issuer)   │
+                    │   JWKS: Cognito (single issuer)  │
                     └──────────────────────────────────┘
 ```
 
 ---
 
-## Topologia da plataforma
+## Platform topology
 
 ```
            sarah@customer1.com                        motoko@customer2.com
@@ -82,9 +82,9 @@ customer1-us-east-1  customer1-us-west-1             customer2-ap-northeast-1
 
 ---
 
-## Fluxo de autenticação
+## Authentication flow
 
-### Resumido
+### Summary
 
 ```
 motoko@customer1.com (Tokyo, Japan)
@@ -103,24 +103,24 @@ GET https://customer1.wasp.silvios.me        - Global Accelerator
   > customer1-ap-northeast-1.wasp.silvios.me - Asia Pacific (Tokyo)
 ```
 
-### Expandido
+### Expanded
 
 ```
 1. GET https://wasp.silvios.me
 
-   - Sem cookie → redirect /login
+   - No cookie → redirect /login
 
 
-2. Usuário digita sarah@customer1.com
+2. User types sarah@customer1.com
 
-   - Frontend extrai domínio "customer1.com"
+   - Frontend extracts domain "customer1.com"
 
 
 3. GET https://discovery.wasp.silvios.me/tenant?domain=customer1.com
 
-   - DynamoDB lookup por "domain#customer1.com"
+   - DynamoDB lookup by "domain#customer1.com"
 
-   - Retorna:
+   - Returns:
 
        {
          "client_id": "abc123",
@@ -130,7 +130,7 @@ GET https://customer1.wasp.silvios.me        - Global Accelerator
        }
 
 
-4. Frontend monta URL do Cognito Hosted UI:
+4. Frontend builds the Cognito Hosted UI URL:
 
    GET https://idp.wasp.silvios.me/oauth2/authorize
      ?client_id=abc123
@@ -138,48 +138,48 @@ GET https://customer1.wasp.silvios.me        - Global Accelerator
      &redirect_uri=https://auth.wasp.silvios.me/callback
      &response_type=code
      &scope=openid+email+profile
-     &state=<JWT assinado: tenant_id + nonce + return_url>
+     &state=<signed JWT: tenant_id + nonce + return_url>
 
 
-5. Cognito redireciona para o IdP configurado (Google/Microsoft/Okta/etc.)
+5. Cognito redirects to the configured IdP (Google/Microsoft/Okta/etc.)
    
-   - O usuário autentica no IdP dele (UI do próprio IdP)
+   - User authenticates at their IdP (IdP's own UI)
 
 
-6. IdP retorna para Cognito com code
+6. IdP returns to Cognito with code
 
-   - Cognito valida, mapeia atributos, emite tokens próprios
+   - Cognito validates, maps attributes, issues its own tokens
 
-   - Cognito redireciona para auth.wasp.silvios.me/callback?code=...
+   - Cognito redirects to auth.wasp.silvios.me/callback?code=...
 
 
 7. Callback handler:
 
-   - Troca code por tokens (POST /oauth2/token no Cognito)
+   - Exchanges code for tokens (POST /oauth2/token to Cognito)
 
-   - Decodifica state → extrai tenant_id e return_url
+   - Decodes state → extracts tenant_id and return_url
 
    - set-cookie: session=<JWT> Domain=.wasp.silvios.me HttpOnly Secure SameSite=Lax
 
-   - redirect para customer1.wasp.silvios.me
+   - redirect to customer1.wasp.silvios.me
 
 
-8. customer1.wasp.silvios.me recebe request com cookie
+8. customer1.wasp.silvios.me receives request with cookie
 
-   - Istio RequestAuthentication valida JWT (JWKS do Cognito)
+   - Istio RequestAuthentication validates JWT (Cognito JWKS)
 
-   - Istio AuthorizationPolicy exige JWT válido
+   - Istio AuthorizationPolicy requires valid JWT
 
-   - App recebe claims: sub, email, custom:tenant_id, custom:groups
+   - App receives claims: sub, email, custom:tenant_id, custom:groups
 ```
 
 ---
 
-## Estrutura de dados — DynamoDB
+## Data structures — DynamoDB
 
-### Tabela `tenant-registry` (DynamoDB Global Table)
+### `tenant-registry` table (DynamoDB Global Table)
 
-Lookup rápido de domínio de e-mail para configuração do tenant. Replicada em todas as regiões do Global Accelerator para leitura local com latência mínima.
+Fast email domain lookup to tenant configuration. Replicated across all Global Accelerator regions for local reads with minimal latency.
 
 ```json
 // Google SSO
@@ -258,9 +258,9 @@ Lookup rápido de domínio de e-mail para configuração do tenant. Replicada em
 }
 ```
 
-### Tabela `tenant-idp-config`
+### `tenant-idp-config` table
 
-Dados sensíveis do IdP, separados para controle de acesso IAM granular. Apenas o callback handler tem permissão de leitura.
+Sensitive IdP data, separated for granular IAM access control. Only the callback handler has read permission.
 
 ```json
 {
@@ -279,18 +279,18 @@ Dados sensíveis do IdP, separados para controle de acesso IAM granular. Apenas 
 
 ---
 
-## Integração com o lab existente
+## Integration with the existing lab
 
-| Componente do lab | Papel no fluxo de autenticação |
+| Lab component | Role in the authentication flow |
 |---|---|
-| **ALB + `*.wasp.silvios.me`** | Roteia `auth.wasp.silvios.me` e `discovery.wasp.silvios.me` sem alteração no Ingress |
-| **Istio `VirtualService`** | Configura CORS para chamadas cross-origin entre subdomínios |
-| **Istio `RequestAuthentication`** | Valida JWT Cognito — JWKS único independente do IdP upstream |
-| **Istio `AuthorizationPolicy`** | Bloqueia requisições sem JWT válido **e** rejeita JWTs de outros tenants via claim `custom:tenant_id` |
-| **WAF** | Rate limiting em `/login` e `/callback` (endereça [SEC-007](security-issues/sec-007.md)) |
-| **IRSA** | Discovery service com permissão de leitura no DynamoDB; callback handler com acesso ao Secrets Manager |
+| **ALB + `*.wasp.silvios.me`** | Routes `auth.wasp.silvios.me` and `discovery.wasp.silvios.me` without changes to the Ingress |
+| **Istio `VirtualService`** | Configures CORS for cross-origin calls between subdomains |
+| **Istio `RequestAuthentication`** | Validates Cognito JWT — single JWKS regardless of the upstream IdP |
+| **Istio `AuthorizationPolicy`** | Blocks requests without a valid JWT **and** rejects JWTs from other tenants via the `custom:tenant_id` claim |
+| **WAF** | Rate limiting on `/login` and `/callback` (addresses [SEC-007](security-issues/sec-007.md)) |
+| **IRSA** | Discovery service with DynamoDB read permission; callback handler with Secrets Manager access |
 
-### Configuração do Istio RequestAuthentication
+### Istio RequestAuthentication configuration
 
 ```yaml
 apiVersion: security.istio.io/v1beta1
@@ -307,13 +307,13 @@ spec:
 
 ---
 
-## Isolamento de tenant via JWT claims
+## Tenant isolation via JWT claims
 
-A validação da assinatura do JWT (`RequestAuthentication`) garante que o token é legítimo, mas **não impede** que um JWT válido de `customer2` seja usado para tentar acessar recursos de `customer1`. O isolamento real é aplicado em duas camadas complementares.
+JWT signature validation (`RequestAuthentication`) proves the token is legitimate, but does not prevent a valid JWT from `customer2` from being used to access `customer1` resources. Real isolation is enforced at two complementary layers.
 
-### 1. Injeção do `tenant_id` no JWT — Cognito Pre-Token Generation Lambda
+### 1. `tenant_id` injection into the JWT — Cognito Pre-Token Generation Lambda
 
-Cada App Client no Cognito está associado a exatamente um tenant. Um Lambda trigger de pré-geração de token injeta o `tenant_id` correto no JWT com base no `clientId` usado na autenticação — o cliente não tem como forjar esse valor:
+Each App Client in Cognito is associated with exactly one tenant. A pre-token generation Lambda trigger injects the correct `tenant_id` into the JWT based on the `clientId` used for authentication — the client cannot forge this value:
 
 ```python
 import boto3
@@ -324,7 +324,7 @@ table = dynamodb.Table('tenant-registry')
 def handler(event, context):
     client_id = event['callerContext']['clientId']
 
-    # Busca tenant_id pelo App Client ID (GSI na tabela)
+    # Lookup tenant_id by App Client ID (GSI on the table)
     response = table.query(
         IndexName='client-id-index',
         KeyConditionExpression='cognito_app_client_id = :cid',
@@ -341,9 +341,9 @@ def handler(event, context):
     return event
 ```
 
-### 2. Enforcement no Istio — AuthorizationPolicy por namespace
+### 2. Enforcement in Istio — AuthorizationPolicy per namespace
 
-Cada namespace de tenant tem sua própria `AuthorizationPolicy` que exige que o claim `tenant_id` do JWT corresponda ao tenant do namespace. Quando existe pelo menos uma `AuthorizationPolicy` num namespace, o Istio nega tudo que não for explicitamente permitido.
+Each tenant namespace has its own `AuthorizationPolicy` that requires the JWT `tenant_id` claim to match the tenant owning the namespace. When at least one `AuthorizationPolicy` exists in a namespace, Istio denies everything not explicitly allowed.
 
 ```yaml
 # namespace: customer1
@@ -357,11 +357,11 @@ spec:
   rules:
     - when:
         - key: request.auth.claims[custom:tenant_id]
-          values: ["customer1"]  # só JWTs com custom:tenant_id=customer1 são aceitos
+          values: ["customer1"]  # only JWTs with custom:tenant_id=customer1 are accepted
 ```
 
 ```yaml
-# namespace: customer2 — mesma estrutura, valor diferente
+# namespace: customer2 — same structure, different value
 apiVersion: security.istio.io/v1beta1
 kind: AuthorizationPolicy
 metadata:
@@ -375,72 +375,72 @@ spec:
           values: ["customer2"]
 ```
 
-### Cenário de ataque mitigado
+### Mitigated attack scenario
 
 ```
-sarah@customer1.com autentica → recebe JWT com tenant_id=customer1
+sarah@customer1.com authenticates → receives JWT with tenant_id=customer1
 
-Tentativa de acesso cruzado:
+Cross-tenant access attempt:
   GET https://customer2.wasp.silvios.me/api/data
-  Cookie: session=<JWT de customer1>
+  Cookie: session=<JWT from customer1>
 
-Camadas de defesa:
-  1. ALB roteia customer2.wasp.silvios.me → Istio IngressGateway  ✓
-  2. RequestAuthentication valida assinatura do JWT               ✓ (JWT é válido)
-  3. AuthorizationPolicy verifica tenant_id == "customer2"        ✗ BLOQUEADO
+Defense layers:
+  1. ALB routes customer2.wasp.silvios.me → Istio IngressGateway  ✓
+  2. RequestAuthentication validates JWT signature               ✓ (JWT is valid)
+  3. AuthorizationPolicy checks tenant_id == "customer2"        ✗ BLOCKED
      → HTTP 403
 ```
 
-O token é criptograficamente válido — mas o `tenant_id` errado o torna inútil fora do namespace do próprio tenant.
+The token is cryptographically valid — but the wrong `tenant_id` makes it useless outside its own tenant's namespace.
 
-### Defesa em profundidade
+### Defense in depth
 
-| Camada | Mecanismo | O que valida |
+| Layer | Mechanism | What it validates |
 |---|---|---|
-| ALB | Host-based routing | Subdomínio correto chega ao cluster |
-| Istio IngressGateway | `VirtualService` por Host | Roteamento para o namespace do tenant correto |
-| Istio `RequestAuthentication` | JWKS do Cognito | Assinatura e expiração do JWT |
-| Istio `AuthorizationPolicy` | Claim `tenant_id` | JWT pertence ao tenant dono do namespace |
+| ALB | Host-based routing | Correct subdomain reaches the cluster |
+| Istio IngressGateway | `VirtualService` per Host | Routing to the correct tenant namespace |
+| Istio `RequestAuthentication` | Cognito JWKS | JWT signature and expiration |
+| Istio `AuthorizationPolicy` | `tenant_id` claim | JWT belongs to the namespace's tenant |
 
 ---
 
-## Desafios por tipo de IdP
+## Challenges by IdP type
 
-### Google e Microsoft
-- Configuração mais simples — suporte OIDC nativo no Cognito
-- Microsoft: cada empresa tem seu próprio Azure AD tenant com `issuer` diferente (`https://login.microsoftonline.com/<tenant-id>/v2.0`) — cada App Client aponta para o issuer correto
+### Google and Microsoft
+- Simpler configuration — native OIDC support in Cognito
+- Microsoft: each company has its own Azure AD tenant with a different `issuer` (`https://login.microsoftonline.com/<tenant-id>/v2.0`) — each App Client points to the correct issuer
 
-### Okta e Auth0
-- Funcionam como OIDC providers completos — Cognito os vê como IdP externo via OIDC federation
-- Auth0 pode agregar outros IdPs internamente — o Cognito vê só o Auth0, não o IdP upstream
-- Mapeamento de custom claims (grupos, roles) requer configuração de attribute mapping no Cognito
+### Okta and Auth0
+- Work as full OIDC providers — Cognito sees them as external IdPs via OIDC federation
+- Auth0 can aggregate other IdPs internally — Cognito only sees Auth0, not the upstream IdP
+- Custom claim mapping (groups, roles) requires attribute mapping configuration in Cognito
 
 ### Keycloak self-hosted
-- Suporte OIDC ou SAML — OIDC é preferível
-- **Risco crítico:** requer conectividade de rede entre AWS e o servidor do customer
-  - Opção 1: Customer expõe Keycloak publicamente com TLS
-  - Opção 2: AWS PrivateLink + VPN site-to-site
-  - Opção 3: Customer migra para Keycloak Cloud (managed)
-- Se o Keycloak do customer ficar indisponível, o login do tenant inteiro quebra — **SLA da plataforma fica acoplado à infra do customer**
+- OIDC or SAML support — OIDC is preferred
+- **Critical risk:** requires network connectivity between AWS and the customer's server
+  - Option 1: Customer exposes Keycloak publicly with TLS
+  - Option 2: AWS PrivateLink + site-to-site VPN
+  - Option 3: Customer migrates to Keycloak Cloud (managed)
+- If the customer's Keycloak becomes unavailable, the entire tenant's login breaks — **platform SLA is coupled to the customer's infrastructure**
 
 ---
 
-## Desafios e resoluções
+## Challenges and resolutions
 
-| Desafio | Impacto | Resolução |
+| Challenge | Impact | Resolution |
 |---|---|---|
-| CORS entre `wasp.silvios.me` e `customer1.wasp.silvios.me` | Requisições AJAX bloqueadas | Redirecionamentos OAuth não sofrem CORS; para AJAX, configurar `Access-Control-Allow-Origin` no Istio `VirtualService` |
-| Redirect URI do Google/Microsoft requer pré-cadastro | Não escala com N tenants | Callback centralizado `auth.wasp.silvios.me/callback` — única URI registrada em todos os IdPs |
-| Cognito: limite de 300 IdPs externos por User Pool | Teto de ~300 tenants por pool | Múltiplos User Pools por região ou tier |
-| Atributos customizados variam por IdP | JWT com campos inconsistentes | Attribute mapping no Cognito + schema fixo de claims na plataforma |
-| Renovação de tokens cross-domain | Cookie `.wasp.silvios.me` expira, refresh transparente necessário | Callback handler centralizado gerencia refresh; aplicação não precisa implementar |
-| Keycloak/IdP indisponível | Login quebrado para o tenant | Health check do IdP no discovery + página de erro contextualizada por tenant |
-| JWT de customer1 usado para acessar customer2 | Vazamento de dados entre tenants | `AuthorizationPolicy` por namespace valida `tenant_id` claim — JWT válido mas de tenant errado recebe HTTP 403 |
-| Onboarding de novo tenant | Criar App Client + configurar IdP + registrar no DynamoDB | API de onboarding (Lambda + DynamoDB + Cognito SDK) — ponto mais operacional do sistema |
+| CORS between `wasp.silvios.me` and `customer1.wasp.silvios.me` | AJAX requests blocked | OAuth redirects are not subject to CORS; for AJAX, configure `Access-Control-Allow-Origin` in the Istio `VirtualService` |
+| Google/Microsoft redirect URI requires pre-registration | Does not scale with N tenants | Centralized callback `auth.wasp.silvios.me/callback` — single URI registered with all IdPs |
+| Cognito: limit of 300 external IdPs per User Pool | ~300 tenant ceiling per pool | Multiple User Pools per region or tier |
+| Custom attributes vary by IdP | JWT with inconsistent fields | Attribute mapping in Cognito + fixed claims schema on the platform |
+| Cross-domain token renewal | `.wasp.silvios.me` cookie expires, transparent refresh needed | Centralized callback handler manages refresh; application does not need to implement it |
+| Keycloak/IdP unavailable | Login broken for the tenant | IdP health check in discovery + tenant-contextualized error page |
+| customer1 JWT used to access customer2 | Data leak between tenants | `AuthorizationPolicy` per namespace validates `tenant_id` claim — valid but wrong-tenant JWT gets HTTP 403 |
+| New tenant onboarding | Create App Client + configure IdP + register in DynamoDB | Onboarding API (Lambda + DynamoDB + Cognito SDK) — the most operational point in the system |
 
 ---
 
-## Contratos de API
+## API contracts
 
 ### Discovery Service — `GET /tenant`
 
@@ -467,20 +467,20 @@ GET /tenant?domain=gmail.com
 ```
 GET /callback?code=<code>&state=<state-jwt>
 
-1. Decodifica state JWT → { tenant_id, nonce, return_url }
+1. Decode state JWT → { tenant_id, nonce, return_url }
 2. POST https://idp.wasp.silvios.me/oauth2/token
      grant_type=authorization_code
      code=<code>
      client_id=<app-client-id>
      redirect_uri=https://auth.wasp.silvios.me/callback
-3. Recebe id_token (JWT Cognito com custom:tenant_id)
-4. Valida que token.tenant_id == state.tenant_id
+3. Receive id_token (Cognito JWT with custom:tenant_id)
+4. Validate that token.tenant_id == state.tenant_id
 5. Set-Cookie: session=<id_token>; Domain=.wasp.silvios.me; HttpOnly; Secure; SameSite=Lax
 6. 302 → https://<return_url>
 ```
 
 ---
 
-## Decisões em aberto
+## Open decisions
 
-Ver [decisoes-tecnicas.md](decisoes-tecnicas.md) para o registro detalhado de cada decisão pendente e os trade-offs considerados.
+See [decisoes-tecnicas.md](decisoes-tecnicas.md) for the detailed record of each pending decision and the trade-offs considered.
