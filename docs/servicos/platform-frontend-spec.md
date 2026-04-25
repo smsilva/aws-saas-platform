@@ -6,38 +6,25 @@ Define the behavioral contracts for the platform login frontend, which acts as t
 
 ## Requirements
 
-### Requirement: Login Page Rendering
+### Login Page Rendering
 
-The system SHALL render `login.html` on `GET /` without requiring any authentication.
+`GET /` renders `login.html` without requiring any authentication.
 
-### Requirement: Email-Based IdP Routing
+### Email-Based IdP Routing
 
-The system SHALL accept a user's email via `POST /login`, extract the domain portion, query the Discovery Service, and redirect to the Cognito Hosted UI for the corresponding tenant.
+`POST /login` accepts a user's email, extracts the domain portion, queries the Discovery Service, and redirects to the Cognito Hosted UI for the corresponding tenant.
 
-#### Scenario: Valid email with registered domain
+- Valid email with a registered domain (e.g., `sarah@customer1.com`): responds with HTTP 302 to `https://<COGNITO_DOMAIN>/oauth2/authorize` with the correct `client_id`, `identity_provider`, `state`, and `redirect_uri`.
+- Invalid email format (missing `@` or dot in domain): re-renders `login.html` with an error message without calling the Discovery Service.
+- Domain not found in Discovery Service: re-renders `login.html` with an error message.
 
-WHEN a user submits `sarah@customer1.com`
-AND `customer1.com` is registered in the Discovery Service
-THEN the service SHALL respond with HTTP 302 to `https://<COGNITO_DOMAIN>/oauth2/authorize` with the correct `client_id`, `identity_provider`, `state`, and `redirect_uri`
+### CSRF Protection via State JWT
 
-#### Scenario: Invalid email format
+A state JWT (HS256, expiry 10 minutes) containing `tenant_id`, `client_id`, `return_url`, and a random `nonce` is signed and passed as the `state` parameter in the Cognito authorization URL.
 
-WHEN a user submits an email missing `@` or a dot in the domain
-THEN the service SHALL re-render `login.html` with an error message
-AND SHALL NOT call the Discovery Service
+### Cognito Authorization URL Construction
 
-#### Scenario: Domain not found
-
-WHEN a user submits an email whose domain is not registered in the Discovery Service
-THEN the service SHALL re-render `login.html` with an error message
-
-### Requirement: CSRF Protection via State JWT
-
-The system SHALL sign a state JWT (HS256, expiry 10 minutes) containing `tenant_id`, `client_id`, `return_url`, and a random `nonce`, and pass it as the `state` parameter in the Cognito authorization URL.
-
-### Requirement: Cognito Authorization URL Construction
-
-The system SHALL build the Cognito authorization URL with the following parameters:
+The Cognito authorization URL is built with the following parameters:
 
 | Parameter | Value |
 |---|---|
@@ -48,6 +35,6 @@ The system SHALL build the Cognito authorization URL with the following paramete
 | `scope` | `openid email profile` |
 | `state` | Signed state JWT |
 
-### Requirement: Health Endpoint
+### Health Endpoint
 
-The system SHALL expose `GET /health` returning HTTP 200 with `{"status": "ok"}`.
+`GET /health` returns HTTP 200 with `{"status": "ok"}`.

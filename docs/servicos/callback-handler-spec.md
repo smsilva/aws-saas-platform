@@ -6,55 +6,32 @@ Define the behavioral contracts for the OAuth 2.0 callback processor. This servi
 
 ## Requirements
 
-### Requirement: State JWT Validation
+### State JWT Validation
 
-The system SHALL validate the `state` query parameter as a JWT signed with `STATE_JWT_SECRET` (HS256) before processing any callback.
+The `state` query parameter is validated as a JWT signed with `STATE_JWT_SECRET` (HS256) before processing any callback. If the JWT is malformed, has an invalid signature, or is expired, the service responds with HTTP 400 and renders `error.html`.
 
-#### Scenario: Invalid or expired state
+### Authorization Code Exchange
 
-WHEN the `state` JWT is malformed, has an invalid signature, or is expired
-THEN the service SHALL respond with HTTP 400 and render `error.html`
+The `code` query parameter is exchanged for tokens by POSTing to `https://<COGNITO_DOMAIN>/oauth2/token` with `grant_type=authorization_code` and HTTP Basic authentication using the tenant's App Client credentials. If the Cognito token endpoint returns a non-200 response, the service responds with HTTP 400 and renders `error.html`.
 
-### Requirement: Authorization Code Exchange
+### Tenant Isolation Enforcement
 
-The system SHALL exchange the `code` query parameter for tokens by POSTing to `https://<COGNITO_DOMAIN>/oauth2/token` with `grant_type=authorization_code` and HTTP Basic authentication using the tenant's App Client credentials.
+The email domain is extracted from the `id_token`, the Discovery Service is queried, and the returned `tenant_id` is compared with the `tenant_id` in the state JWT. If they differ, the service responds with HTTP 403 and renders `error.html`.
 
-#### Scenario: Token exchange fails
+### Session Cookie Issuance
 
-WHEN the Cognito token endpoint returns a non-200 response
-THEN the service SHALL respond with HTTP 400 and render `error.html`
-
-### Requirement: Tenant Isolation Enforcement
-
-The system SHALL extract the email domain from the `id_token`, query the Discovery Service, and compare the returned `tenant_id` with the `tenant_id` present in the state JWT.
-
-#### Scenario: Tenant ID mismatch
-
-WHEN the `tenant_id` from the Discovery Service differs from the `tenant_id` in the state JWT
-THEN the service SHALL respond with HTTP 403 and render `error.html`
-
-### Requirement: Session Cookie Issuance
-
-The system SHALL set a `session` cookie containing the Cognito `id_token` with these attributes:
+On success (valid state, successful token exchange, matching tenant IDs), the service sets a `session` cookie containing the Cognito `id_token` with these attributes:
 - `HttpOnly`
 - `Secure`
 - `SameSite=Lax`
 - `Domain=.wasp.silvios.me`
 
-#### Scenario: Successful callback
+The response is HTTP 302 redirecting to the `return_url` from the state JWT.
 
-WHEN state is valid, token exchange succeeds, and tenant IDs match
-THEN the service SHALL set the session cookie and redirect with HTTP 302 to the `return_url` from the state JWT
+### Per-Tenant Client Secret Lookup
 
-### Requirement: Per-Tenant Client Secret Lookup
+Each tenant's Cognito App Client secret is resolved from an environment variable named `COGNITO_CLIENT_SECRET_<TENANT_ID_UPPERCASE>`. If the environment variable for the requesting tenant does not exist, the service responds with HTTP 500 and renders `error.html`.
 
-The system SHALL resolve each tenant's Cognito App Client secret from an environment variable named `COGNITO_CLIENT_SECRET_<TENANT_ID_UPPERCASE>`.
+### Health Endpoint
 
-#### Scenario: Tenant secret not configured
-
-WHEN the environment variable for the requesting tenant does not exist
-THEN the service SHALL respond with HTTP 500 and render `error.html`
-
-### Requirement: Health Endpoint
-
-The system SHALL expose `GET /health` returning HTTP 200 with `{"status": "ok"}` regardless of authentication state.
+`GET /health` returns HTTP 200 with `{"status": "ok"}` regardless of authentication state.

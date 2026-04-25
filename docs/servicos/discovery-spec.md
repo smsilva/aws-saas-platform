@@ -6,29 +6,19 @@ Define the behavioral contracts for the tenant discovery service, which maps an 
 
 ## Requirements
 
-### Requirement: Domain-to-Tenant Resolution
+### Domain-to-Tenant Resolution
 
-The system SHALL resolve an email domain to a `TenantConfig` by looking up the primary key `domain#<domain>` (lowercase) in the DynamoDB table `tenant-registry`.
+Resolves an email domain to a `TenantConfig` by looking up the primary key `domain#<domain>` (lowercase) in the DynamoDB table `tenant-registry`.
 
-#### Scenario: Known domain
+`GET /tenant?domain=customer1.com` returns HTTP 200 with a JSON body containing `tenant_id`, `tenant_url`, `client_id`, `idp_name`, and `idp_pool_id` when the domain is registered. When no item exists for the domain, the service responds with HTTP 404 and `{"detail": "Tenant not found for domain: unknown.com"}`.
 
-WHEN `GET /tenant?domain=customer1.com` is called
-AND `domain#customer1.com` exists in `tenant-registry`
-THEN the service SHALL respond with HTTP 200 and a JSON body containing `tenant_id`, `tenant_url`, `client_id`, `idp_name`, and `idp_pool_id`
+### DynamoDB Access via IRSA
 
-#### Scenario: Unknown domain
+DynamoDB is accessed via IRSA (IAM Roles for Service Accounts), requiring only `dynamodb:GetItem` on the `tenant-registry` table. No hardcoded credentials are present in the container.
 
-WHEN `GET /tenant?domain=unknown.com` is called
-AND no item with key `domain#unknown.com` exists in `tenant-registry`
-THEN the service SHALL respond with HTTP 404 and `{"detail": "Tenant not found for domain: unknown.com"}`
+### TenantConfig Response Schema
 
-### Requirement: DynamoDB Access via IRSA
-
-The system SHALL access DynamoDB using IRSA (IAM Roles for Service Accounts), requiring only `dynamodb:GetItem` on the `tenant-registry` table. No hardcoded credentials SHALL be present in the container.
-
-### Requirement: TenantConfig Response Schema
-
-The system SHALL return the following fields in every successful response:
+Every successful response returns the following fields:
 
 | Field | Type | Source attribute |
 |---|---|---|
@@ -38,10 +28,10 @@ The system SHALL return the following fields in every successful response:
 | `idp_name` | string | `auth.cognito_idp_name` |
 | `idp_pool_id` | string | `auth.cognito_user_pool_id` |
 
-### Requirement: Health Endpoint
+### Health Endpoint
 
-The system SHALL expose `GET /health` returning HTTP 200 with `{"status": "ok"}`.
+`GET /health` returns HTTP 200 with `{"status": "ok"}`.
 
-### Requirement: No Result Caching
+### No Result Caching
 
-The system SHALL NOT cache DynamoDB query results. Each call to `GET /tenant` SHALL perform a `GetItem` against DynamoDB.
+DynamoDB query results are not cached. Each call to `GET /tenant` performs a `GetItem` against DynamoDB.

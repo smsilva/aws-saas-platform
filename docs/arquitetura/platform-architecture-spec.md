@@ -6,34 +6,29 @@ Define the traffic routing stack for the WASP SaaS platform, from the public int
 
 ## Requirements
 
-### Requirement: TLS Termination at the Edge
+### TLS Termination at the Edge
 
-The system SHALL terminate TLS at the ALB using an ACM wildcard certificate for `*.wasp.silvios.me` before forwarding traffic inward.
+TLS terminates at the ALB using an ACM wildcard certificate for `*.wasp.silvios.me` before forwarding traffic inward. HTTP requests to any platform subdomain are redirected to HTTPS with a 301 response.
 
-#### Scenario: HTTP request is upgraded
+### Static IP Ingress via Global Accelerator
 
-WHEN a client sends an HTTP request to any platform subdomain
-THEN the ALB SHALL redirect it to HTTPS with a 301 response
+Static anycast IPs are exposed via AWS Global Accelerator so that DNS A records for `wasp.silvios.me` remain stable across ALB replacements.
 
-### Requirement: Static IP Ingress via Global Accelerator
+### WAF Protection on ALB
 
-The system SHALL expose static anycast IPs via AWS Global Accelerator so that DNS A records for `wasp.silvios.me` remain stable across ALB replacements.
-
-### Requirement: WAF Protection on ALB
-
-The system SHALL associate a WAFv2 WebACL with the ALB that applies, in order:
+A WAFv2 WebACL is associated with the ALB and applies these rules in order:
 - `AWSManagedRulesCommonRuleSet` (XSS, SQLi)
 - `AWSManagedRulesKnownBadInputsRuleSet` (Log4Shell and known malicious inputs)
 - `AWSManagedRulesAmazonIpReputationList` (botnet IPs)
 - Rate limiting on `/login` and `/callback` (100 req / 5 min per IP)
 
-### Requirement: Private Ingress Gateway
+### Private Ingress Gateway
 
-The system SHALL run the Istio IngressGateway as a `ClusterIP` service in private subnets, reachable only from the ALB using `target-type: ip`.
+The Istio IngressGateway runs as a `ClusterIP` service in private subnets, reachable only from the ALB using `target-type: ip`.
 
-### Requirement: Host-Based Routing
+### Host-Based Routing
 
-The system SHALL route traffic to the correct tenant namespace based on the HTTP `Host` header, with one `VirtualService` per subdomain:
+Traffic is routed to the correct tenant namespace based on the HTTP `Host` header, with one `VirtualService` per subdomain:
 
 | Host | Destination |
 |---|---|
@@ -42,20 +37,10 @@ The system SHALL route traffic to the correct tenant namespace based on the HTTP
 | `discovery.wasp.silvios.me` | `discovery.discovery` |
 | `<tenant>.wasp.silvios.me` | workload in `<tenant>` namespace |
 
-### Requirement: JWT Enforcement at the Mesh Layer
+### JWT Enforcement at the Mesh Layer
 
-The system SHALL validate JWT tokens in tenant namespaces using Istio `RequestAuthentication` with the Cognito JWKS URI.
+JWT tokens are validated in tenant namespaces using Istio `RequestAuthentication` with the Cognito JWKS URI. Requests without a valid `session` cookie or `Authorization: Bearer` header are rejected with HTTP 403. Requests carrying a valid JWT whose `custom:tenant_id` claim does not match the target namespace are also rejected with HTTP 403.
 
-#### Scenario: Request without JWT is rejected
+### Sidecar Injection on Tenant Namespaces
 
-WHEN a request reaches a tenant namespace without a valid `session` cookie or `Authorization: Bearer` header
-THEN the Istio `AuthorizationPolicy` SHALL respond with HTTP 403
-
-#### Scenario: JWT from another tenant is rejected
-
-WHEN a request carries a cryptographically valid JWT but with a `custom:tenant_id` claim that does not match the target namespace
-THEN the Istio `AuthorizationPolicy` SHALL respond with HTTP 403
-
-### Requirement: Sidecar Injection on Tenant Namespaces
-
-The system SHALL enable Istio sidecar injection on all tenant namespaces via the `istio-injection: enabled` label.
+Istio sidecar injection is enabled on all tenant namespaces via the `istio-injection: enabled` label.

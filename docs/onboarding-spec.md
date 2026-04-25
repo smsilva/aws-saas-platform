@@ -6,58 +6,43 @@ Define the process and behavioral contracts for registering a new tenant on the 
 
 ## Requirements
 
-### Requirement: IdP Registration in Cognito
+### IdP Registration in Cognito
 
-The system SHALL support creating a new OIDC identity provider in Cognito for a tenant, with the following required inputs: `client_id`, `client_secret`, `oidc_issuer`, and a unique `idp_name` scoped to the tenant (e.g. `Google-Customer3`).
+A new OIDC identity provider is created in Cognito for each tenant, with these required inputs: `client_id`, `client_secret`, `oidc_issuer`, and a unique `idp_name` scoped to the tenant (e.g. `Google-Customer3`).
 
-### Requirement: Per-Tenant App Client
+### Per-Tenant App Client
 
-The system SHALL create one Cognito App Client per tenant with:
+One Cognito App Client is created per tenant with:
 - Authorization code flow enabled
 - `openid email profile` scopes
 - Callback URL: `https://auth.<domain>/callback`
 - Logout URL: `https://<tenant_id>.<domain>/logout`
 - A generated client secret
 
-### Requirement: Domain Registration in DynamoDB
+### Domain Registration in DynamoDB
 
-The system SHALL register each tenant email domain in `tenant-registry` as a separate item with primary key `domain#<email-domain>`.
+Each tenant email domain is registered in `tenant-registry` as a separate item with primary key `domain#<email-domain>`. After registration, `GET /tenant?domain=<domain>` on the Discovery Service returns HTTP 200 with `tenant_id`, `tenant_url`, `client_id`, `idp_name`, and `idp_pool_id`.
 
-#### Scenario: Domain lookup succeeds after registration
+### Callback Handler Secret Update
 
-WHEN a domain is registered in `tenant-registry`
-THEN `GET /tenant?domain=<domain>` on the Discovery Service SHALL return HTTP 200 with `tenant_id`, `tenant_url`, `client_id`, `idp_name`, and `idp_pool_id`
+The new tenant's Cognito App Client secret is added to the `callback-handler-secret` Kubernetes Secret and the `callback-handler` deployment is restarted before traffic is sent to the new tenant.
 
-### Requirement: Callback Handler Secret Update
+### Isolated Tenant Namespace
 
-The system SHALL add the new tenant's Cognito App Client secret to the `callback-handler-secret` Kubernetes Secret and restart the `callback-handler` deployment before traffic is sent to the new tenant.
-
-### Requirement: Isolated Tenant Namespace
-
-The system SHALL create a dedicated Kubernetes namespace per tenant with:
+A dedicated Kubernetes namespace is created per tenant with:
 - `istio-injection: enabled` label
 - `RequestAuthentication` configured with the Cognito JWKS URI
 - `AuthorizationPolicy` that only permits JWTs where `custom:tenant_id` equals the tenant's ID
 
-#### Scenario: Unauthenticated request to tenant namespace
+Requests with no `session` cookie return HTTP 403. Requests carrying a JWT for a different tenant (e.g., `custom:tenant_id = "customer1"` targeting namespace `customer2`) also return HTTP 403.
 
-WHEN a request reaches a tenant namespace with no `session` cookie
-THEN the response SHALL be HTTP 403
+### Shared IdP Reuse
 
-#### Scenario: Wrong-tenant JWT is rejected
+When two email domains belong to the same corporate identity directory (same Cognito App Client ID), additional domains can be registered in `tenant-registry` pointing to the existing App Client. No new IdP or App Client in Cognito is required.
 
-WHEN a request carries a JWT with `custom:tenant_id = "customer1"` and targets namespace `customer2`
-THEN the response SHALL be HTTP 403
+### Onboarding Verification
 
-### Requirement: Shared IdP Reuse
-
-WHEN two email domains belong to the same corporate identity directory (same Cognito App Client ID)
-THEN the system SHALL allow registering additional domains in `tenant-registry` pointing to the existing App Client
-AND SHALL NOT require creating a new IdP or App Client in Cognito
-
-### Requirement: Onboarding Verification
-
-After completing all steps, the system SHALL pass the following checks:
+After completing all steps, the following checks must pass:
 - `GET /tenant?domain=<domain>` → HTTP 200
 - Request with no JWT to `<tenant>.wasp.silvios.me` → HTTP 403
 - Request with JWT from a different tenant → HTTP 403
