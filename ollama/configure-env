@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-# Source este arquivo para configurar o servidor Ollama com Flash Attention e KV cache Q8_0
-# Usage: source ollama/configure-env
-
-export OLLAMA_FLASH_ATTENTION=1
-export OLLAMA_KV_CACHE_TYPE=q8_0
-export OLLAMA_KEEP_ALIVE=-1
