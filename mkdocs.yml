@@ -1,7 +1,7 @@
-site_name: EKS Lab — ALB + Istio + Autenticação Multi-tenant
+site_name: EKS Lab — ALB + Istio + Multi-tenant Authentication
 site_description: >
-  Laboratório de EKS com VPC, ALB, Istio Gateway, WAF, Cognito e DynamoDB.
-  Plataforma SaaS multi-tenant com autenticação federada via múltiplos IdPs.
+  EKS lab with VPC, ALB, Istio Gateway, WAF, Cognito, and DynamoDB.
+  Multi-tenant SaaS platform with federated authentication via multiple IdPs.
 site_author: Silvio Silva
 site_url: https://smsilva.github.io/aws-saas-platform/
 repo_url: https://github.com/smsilva/aws-saas-platform
@@ -11,7 +11,7 @@ docs_dir: docs
 
 theme:
   name: material
-  language: pt-BR
+  language: en
   features:
     - navigation.tabs
     - navigation.tabs.sticky
@@ -30,19 +30,19 @@ theme:
       accent: amber
       toggle:
         icon: material/brightness-7
-        name: Mudar para tema escuro
+        name: Switch to dark theme
     - scheme: slate
       primary: indigo
       accent: amber
       toggle:
         icon: material/brightness-4
-        name: Mudar para tema claro
+        name: Switch to light theme
   icon:
     logo: material/cloud-braces
 
 plugins:
   - search:
-      lang: pt
+      lang: en
 
 markdown_extensions:
   - admonition
@@ -68,21 +68,25 @@ markdown_extensions:
   - def_list
   - toc:
       permalink: true
-      title: Nesta página
+      title: On this page
 
 nav:
-  - Início: README.md
+  - Home: README.md
 
   - Architecture:
     - architecture/README.md
     - Traffic Flow: architecture/traffic-flow.md
+    - Platform Architecture: architecture/platform-architecture.md
     - Multi-tenant Authentication: multi-tenant-auth-flow.md
+    - Auth Architecture Spec: architecture/auth-multitenant.md
+    - WAF Spec: architecture/waf.md
     - Technical Decisions: technical-decisions.md
 
   - Operations:
     - operations/README.md
     - Step-by-Step: operations/step-by-step.md
     - Customer Onboarding: customer-onboarding.md
+    - Tenant Onboarding Spec: onboarding.md
     - Destroy the Lab: operations/destroy-lab.md
 
   - Frontend:
@@ -102,3 +106,6 @@ nav:
     - SEC-005 — ALB Security Groups: security/issues/sec-005.md
     - SEC-006 — IMDSv1 on nodes: security/issues/sec-006.md
     - SEC-007 — WAF without rate limiting: security/issues/sec-007.md
+
+  - Well-Architected Framework:
+    - well-architected-framework/README.md
