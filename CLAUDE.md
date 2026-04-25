@@ -28,6 +28,26 @@ kubectl get pods -A
 helm list -A
 ```
 
+## MkDocs theme toggle (Chrome DevTools MCP)
+
+Material for MkDocs hides the palette radio `<input>` elements — only `<label>` elements are clickable. `emulate colorScheme` and clicking radio UIDs from the a11y snapshot both fail. Use JavaScript to trigger the toggle:
+
+```js
+// Switch to light
+Array.from(document.querySelectorAll('[data-md-color-scheme]'))
+  .find(el => el.getAttribute('data-md-color-scheme') === 'default')?.click();
+
+// Switch to dark
+Array.from(document.querySelectorAll('[data-md-color-scheme]'))
+  .find(el => el.getAttribute('data-md-color-scheme') === 'slate')?.click();
+```
+
+Verify with:
+```js
+({ scheme: document.body.getAttribute('data-md-color-scheme'),
+   bg: getComputedStyle(document.body).backgroundColor })
+```
+
 ## Additional rules
 
 - **New AWS/Azure resource:** add deletion entry to `scripts/destroy` in the same session — reverse order, dependency-aware, idempotent (`|| true`)
