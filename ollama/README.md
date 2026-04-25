@@ -1,10 +1,10 @@
 # Ollama — Qwen3.5 9B
 
-Executa o modelo Qwen3.5 9B no Ollama com as mesmas configurações otimizadas do LM Studio.
+Runs the Qwen3.5 9B model on Ollama with the same optimized settings as LM Studio.
 
-## Mapeamento LM Studio → Ollama
+## LM Studio → Ollama Mapping
 
-| LM Studio (GUI) | Ollama | Valor |
+| LM Studio (GUI) | Ollama | Value |
 |---|---|---|
 | Context Length | `num_ctx` (Modelfile) | 64000 |
 | GPU Offload | `num_gpu` (Modelfile) | 32 |
@@ -14,39 +14,39 @@ Executa o modelo Qwen3.5 9B no Ollama com as mesmas configurações otimizadas d
 | K/V Cache Quantization Q8\_0 | `OLLAMA_KV_CACHE_TYPE` (env) | q8_0 |
 | Keep Model in Memory | `OLLAMA_KEEP_ALIVE` (env) | -1 |
 
-## Uso rápido
+## Quick Usage
 
 ```bash
-# 1. Iniciar servidor + carregar modelo
+# 1. Start server + load model
 ./ollama/run-model
 
-# 2. Testar
+# 2. Test
 ./ollama/test-model
 ```
 
-API disponível em: `http://localhost:11434`
+API available at: `http://localhost:11434`
 
 ## Scripts
 
-| Script | O que faz |
+| Script | What it does |
 |---|---|
-| `configure-env` | Exporta variáveis de ambiente do servidor (source este arquivo) |
-| `find-or-pull-model` | Localiza GGUF do LM Studio ou baixa via `ollama pull` |
-| `run-model` | Orquestra tudo: env vars, modelo, servidor |
-| `test-model` | Envia requisição de teste via curl |
+| `configure-env` | Exports server environment variables (source this file) |
+| `find-or-pull-model` | Locates LM Studio GGUF or downloads via `ollama pull` |
+| `run-model` | Orchestrates everything: env vars, model, server |
+| `test-model` | Sends a test request via curl |
 
-## Detalhes técnicos
+## Technical Details
 
-**Flash Attention e KV cache** são configurações do servidor Ollama, não do modelo.
-Devem estar definidas antes de `ollama serve`.
+**Flash Attention and KV cache** are Ollama server settings, not model settings.
+Must be set before `ollama serve`.
 
-**KV Cache Q8\_0** aplica-se ao cache de atenção (K e V tensors), não aos pesos do modelo.
-A quantização dos pesos é determinada pelo arquivo GGUF (ex: Q4\_K\_M, Q8\_0).
+**KV Cache Q8\_0** applies to the attention cache (K and V tensors), not to model weights.
+Weight quantization is determined by the GGUF file (e.g., Q4\_K\_M, Q8\_0).
 
-**GGUF local**: O `find-or-pull-model` busca em `~/.cache/lm-studio/models/` por arquivos
-com "qwen" no nome. Se encontrado, usa o arquivo existente (evita download ~5 GB).
+**Local GGUF**: `find-or-pull-model` searches `~/.cache/lm-studio/models/` for files
+with "qwen" in the name. If found, uses the existing file (avoids ~5 GB download).
 
-## Sobrescrever o nome do modelo
+## Override Model Name
 
 ```bash
 OLLAMA_MODEL_NAME=qwen2.5:9b ./ollama/run-model

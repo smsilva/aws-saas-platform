@@ -1,28 +1,28 @@
-# Lessons Learned — Lab Local (k3d + Keycloak + Istio)
+# Lessons Learned — Local Lab (k3d + Keycloak + Istio)
 
-Problemas encontrados e soluções aplicadas durante o desenvolvimento e execução do lab local.
-Documento de referência para reproduzir o ambiente ou diagnosticar falhas em novas execuções.
+Problems encountered and solutions applied during the development and execution of the local lab.
+Reference document for reproducing the environment or diagnosing failures in new runs.
 
 ---
 
 ## Keycloak 26
 
-### Bitnami removeu imagens do Docker Hub
+### Bitnami removed images from Docker Hub
 
-A imagem `bitnami/keycloak` foi removida do Docker Hub. Qualquer referência a ela resulta em
+The `bitnami/keycloak` image was removed from Docker Hub. Any reference to it results in
 `pull access denied`.
 
-**Solução:** usar a imagem oficial `quay.io/keycloak/keycloak:26.1` com `start-dev` e importar
-via `k3d image import` antes do deploy. Setar `imagePullPolicy: Never`.
+**Solution:** use the official image `quay.io/keycloak/keycloak:26.1` with `start-dev` and import
+via `k3d image import` before deploying. Set `imagePullPolicy: Never`.
 
 ---
 
-### `frontendUrl` no body de criação do realm causa erro 400
+### `frontendUrl` in the realm creation body causes a 400 error
 
-Passar `frontendUrl` como campo de topo no JSON de criação (`POST /admin/realms`) retorna
-`"unable to read contents from stream"` no KC 26.
+Passing `frontendUrl` as a top-level field in the creation JSON (`POST /admin/realms`) returns
+`"unable to read contents from stream"` in KC 26.
 
-**Solução:** criar o realm sem `frontendUrl`, depois configurar via:
+**Solution:** create the realm without `frontendUrl`, then configure it via:
 
 ```bash
 curl --request PUT "${kc_url}/admin/realms/${realm}" \
@@ -32,22 +32,22 @@ curl --request PUT "${kc_url}/admin/realms/${realm}" \
 
 ---
 
-### JSON multiline em `--data` causa erro 400 com Istio
+### Multiline JSON in `--data` causes a 400 error with Istio
 
-Quando o pod tem sidecar Istio, requisições `curl` com JSON formatado em múltiplas linhas via
-`--data` causam erros de parse no Keycloak. O Istio modifica o encoding do body.
+When the pod has an Istio sidecar, `curl` requests with JSON formatted across multiple lines via
+`--data` cause parse errors in Keycloak. Istio modifies the body encoding.
 
-**Solução:** sempre usar JSON em uma única linha nos `--data` dos scripts bash.
+**Solution:** always use single-line JSON in `--data` in bash scripts.
 
 ---
 
-### User Profile do KC 26 descarta atributos não declarados
+### KC 26 User Profile silently drops undeclared attributes
 
-No KC 26 o sistema de User Profile só persiste atributos que foram previamente declarados no
-schema do realm. Se `tenant_id` não estiver declarado, ele é ignorado silenciosamente ao criar
-usuários — o curl retorna 201 mas o atributo nunca é gravado.
+In KC 26, the User Profile system only persists attributes that have been previously declared in
+the realm schema. If `tenant_id` is not declared, it is silently ignored when creating
+users — curl returns 201 but the attribute is never saved.
 
-**Solução:** antes de criar usuários, declarar o atributo via `GET /users/profile` → adicionar
+**Solution:** before creating users, declare the attribute via `GET /users/profile` → add
 `tenant_id` → `PUT /users/profile`:
 
 ```bash
@@ -73,12 +73,12 @@ curl --request PUT "${kc_url}/admin/realms/${realm}/users/profile" \
 
 ---
 
-### VERIFY_PROFILE bloqueia login mesmo com `defaultAction: false`
+### VERIFY_PROFILE blocks login even with `defaultAction: false`
 
-O KC 26 avalia `VERIFY_PROFILE` dinamicamente. Desabilitar apenas como `defaultAction: false`
-não é suficiente — o action ainda intercepta o login se detectar campos ausentes.
+KC 26 evaluates `VERIFY_PROFILE` dynamically. Disabling it only as `defaultAction: false`
+is not enough — the action still intercepts login if it detects missing fields.
 
-**Solução:** desabilitar completamente com `enabled: false`:
+**Solution:** disable it completely with `enabled: false`:
 
 ```bash
 curl --request PUT \
@@ -89,10 +89,10 @@ curl --request PUT \
 
 ---
 
-### `grant_type=password` não retorna `id_token` sem `scope=openid`
+### `grant_type=password` does not return `id_token` without `scope=openid`
 
-Para testar tokens diretamente via curl, o `password` grant só inclui `id_token` quando
-`scope=openid` está presente:
+When testing tokens directly via curl, the `password` grant only includes `id_token` when
+`scope=openid` is present:
 
 ```bash
 curl ... --data "grant_type=password" --data "scope=openid"
@@ -102,15 +102,15 @@ curl ... --data "grant_type=password" --data "scope=openid"
 
 ## HAProxy Ingress
 
-### Parâmetro Helm para NodePort fixo
+### Helm parameter for fixed NodePort
 
-O parâmetro `controller.service.nodePorts.http` não tem efeito. O parâmetro correto é:
+The parameter `controller.service.nodePorts.http` has no effect. The correct parameter is:
 
 ```bash
 --set "controller.service.httpPorts[0].nodePort=32080"
 ```
 
-Se o HAProxy for instalado com a porta errada, corrigir via patch sem reinstalar:
+If HAProxy is installed with the wrong port, fix it via patch without reinstalling:
 
 ```bash
 kubectl patch svc haproxy-ingress -n ingress-controller \
@@ -120,12 +120,12 @@ kubectl patch svc haproxy-ingress -n ingress-controller \
 
 ---
 
-### HAProxy precisa de um `Ingress` resource para rotear para o Istio
+### HAProxy requires an `Ingress` resource to route to Istio
 
-O HAProxy Ingress Controller não sabe encaminhar para o Istio IngressGateway sem um recurso
-`Ingress` que aponte para ele. Sem isso, o HAProxy retorna 503 para qualquer requisição.
+The HAProxy Ingress Controller does not know how to forward to the Istio IngressGateway without an
+`Ingress` resource pointing to it. Without it, HAProxy returns 503 for every request.
 
-**Solução:** criar um `Ingress` catch-all no namespace `istio-ingress` com `defaultBackend`:
+**Solution:** create a catch-all `Ingress` in the `istio-ingress` namespace with `defaultBackend`:
 
 ```yaml
 apiVersion: networking.k8s.io/v1
@@ -143,18 +143,18 @@ spec:
         number: 80
 ```
 
-Este recurso foi adicionado ao final do script `04-install-istio`.
+This resource was added at the end of script `04-install-istio`.
 
 ---
 
 ## Discovery service
 
-### SQLite falha sem volume montado em `/data`
+### SQLite fails without a volume mounted at `/data`
 
-O service `discovery` tenta criar o arquivo `.db` em `/data/tenants.db`. Sem um volume
-montado nesse path, o pod inicia mas falha com `unable to open database file`.
+The `discovery` service tries to create the `.db` file at `/data/tenants.db`. Without a volume
+mounted at that path, the pod starts but fails with `unable to open database file`.
 
-**Solução:** adicionar `emptyDir: {}` na spec do deployment:
+**Solution:** add `emptyDir: {}` to the deployment spec:
 
 ```yaml
 volumeMounts:
@@ -167,12 +167,12 @@ volumes:
 
 ---
 
-### `DISCOVERY_URL` deve ser in-cluster, não o host externo
+### `DISCOVERY_URL` must be in-cluster, not the external host
 
-Dentro dos pods, `http://discovery.wasp.local:32080` não resolve — o DNS do `/etc/hosts` do
-host não é propagado para os containers.
+Inside pods, `http://discovery.wasp.local:32080` does not resolve — the host's `/etc/hosts` DNS
+is not propagated to containers.
 
-**Solução:** usar o nome de serviço Kubernetes diretamente:
+**Solution:** use the Kubernetes service name directly:
 
 ```
 DISCOVERY_URL=http://discovery.discovery.svc.cluster.local:8000
@@ -180,42 +180,42 @@ DISCOVERY_URL=http://discovery.discovery.svc.cluster.local:8000
 
 ---
 
-### Domínio no seed deve ser o domínio do e-mail, não o subdomínio da aplicação
+### Seed domain must be the email domain, not the application subdomain
 
-A plataforma faz lookup do tenant pelo domínio do e-mail do usuário (`customer1.com`). O seed
-deve conter o domínio do e-mail, não o subdomínio da aplicação (`customer1.wasp.local`).
+The platform looks up the tenant by the user's email domain (`customer1.com`). The seed
+must contain the email domain, not the application subdomain (`customer1.wasp.local`).
 
-**Errado:**
+**Wrong:**
 ```json
 { "domain": "customer1.wasp.local", ... }
 ```
 
-**Correto:**
+**Correct:**
 ```json
 { "domain": "customer1.com", ... }
 ```
 
 ---
 
-## callback-handler — cookie de sessão
+## callback-handler — session cookie
 
-### `secure=True` impede envio do cookie em HTTP
+### `secure=True` prevents the cookie from being sent over HTTP
 
-O valor original `secure=True` hardcoded faz com que o browser (e o curl) nunca envie o
-cookie em conexões HTTP. No lab local não há TLS no path externo.
+The original hardcoded `secure=True` causes the browser (and curl) to never send the
+cookie over HTTP connections. The local lab has no TLS on the external path.
 
-### `domain=".wasp.silvios.me"` não cobre `.wasp.local`
+### `domain=".wasp.silvios.me"` does not cover `.wasp.local`
 
-O domínio hardcoded do lab AWS não corresponde ao domínio local.
+The hardcoded AWS lab domain does not match the local domain.
 
-**Solução (TDD):** adicionar variáveis de ambiente `COOKIE_SECURE` e `COOKIE_DOMAIN`:
+**Solution (TDD):** add `COOKIE_SECURE` and `COOKIE_DOMAIN` environment variables:
 
 ```python
 cookie_secure = os.getenv("COOKIE_SECURE", "true").lower() != "false"
 cookie_domain = os.getenv("COOKIE_DOMAIN", ".wasp.silvios.me")
 ```
 
-No ConfigMap do lab local:
+In the local lab ConfigMap:
 
 ```yaml
 COOKIE_SECURE: "false"
@@ -224,14 +224,14 @@ COOKIE_DOMAIN: ".wasp.local"
 
 ---
 
-## Ordem de diagnóstico recomendada
+## Recommended Diagnostic Order
 
-Ao reprovisionar o lab do zero, verificar nesta ordem se algo falhar:
+When reprovisioning the lab from scratch, check in this order if something fails:
 
-1. **Health checks** — todos os serviços retornam 200 em `/health`
-2. **Token direto** — `grant_type=password&scope=openid` retorna `id_token` com `custom:tenant_id`
-3. **Login flow** — `POST /login` → redirect para KC com `state` válido
-4. **Callback** — `GET /callback?code=...&state=...` retorna 302 com `set-cookie: session=...`
-5. **Cookie** — verificar `Domain=.wasp.local` e ausência de `Secure` no header `set-cookie`
-6. **Acesso tenant** — `curl --cookie "session=<jwt>" http://customer1.wasp.local:32080/` retorna 200
-7. **Isolamento** — JWT do customer1 rejeitado em customer2 com 403
+1. **Health checks** — all services return 200 at `/health`
+2. **Direct token** — `grant_type=password&scope=openid` returns `id_token` with `custom:tenant_id`
+3. **Login flow** — `POST /login` → redirect to KC with valid `state`
+4. **Callback** — `GET /callback?code=...&state=...` returns 302 with `set-cookie: session=...`
+5. **Cookie** — verify `Domain=.wasp.local` and absence of `Secure` in `set-cookie` header
+6. **Tenant access** — `curl --cookie "session=<jwt>" http://customer1.wasp.local:32080/` returns 200
+7. **Isolation** — customer1 JWT rejected at customer2 with 403

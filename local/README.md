@@ -1,8 +1,8 @@
-# Lab Local (k3d)
+# Local Lab (k3d)
 
-Versão offline do lab AWS EKS usando k3d, sem dependências de cloud.
+Offline version of the AWS EKS lab using k3d, with no cloud dependencies.
 
-## Documentação
+## Documentation
 
-- [Diferenças em relação ao lab AWS](docs/diferencas-aws.md)
-- [Lições aprendidas](docs/lessons-learned.md)
+- [Differences from the AWS lab](docs/differences-from-aws.md)
+- [Lessons learned](docs/lessons-learned.md)
