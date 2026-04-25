@@ -1,9 +1,12 @@
-name: Deploy Docs
+name: mkdocs-deploy
 
 on:
   push:
     branches:
       - main
+    paths:
+      - 'docs/**'
+      - 'mkdocs.yml'
 
 permissions:
   contents: read
