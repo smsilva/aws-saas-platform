@@ -261,9 +261,19 @@ lab/aws/eks/
 └── destroy                    # deleção na ordem inversa
 ```
 
-## Decisões técnicas e backlog
+## Documentação
 
-Ver [docs/decisoes-tecnicas.md](docs/decisoes-tecnicas.md) para o registro completo de decisões de design, trade-offs e itens adiados conscientemente.
+| Localização | Conteúdo |
+|---|---|
+| [`docs/arquitetura/`](docs/arquitetura/) | Topologia, fluxo de tráfego, specs formais de componentes |
+| [`docs/well-architected-framework/`](docs/well-architected-framework/) | Roadmap de produção — 17 changes organizadas pelos 6 pilares WAF |
+| [`docs/seguranca/`](docs/seguranca/) | Revisão de segurança, issues abertas e fechadas |
+| [`docs/operacoes/`](docs/operacoes/) | Passo a passo de provisionamento (scripts 01–17) |
+| [`docs/servicos/`](docs/servicos/) | Microserviços `discovery`, `platform-frontend`, `callback-handler` |
+| [`docs/decisoes-tecnicas.md`](docs/decisoes-tecnicas.md) | Decisões de design, trade-offs e itens adiados conscientemente |
+| [`HANDOFF.md`](HANDOFF.md) | Estado da sessão atual e tarefas em aberto |
+
+**Para agentes de IA:** ver [`AGENTS.md`](AGENTS.md) (ponto de entrada para Cursor, Copilot, Gemini CLI e outros) e [`CLAUDE.md`](CLAUDE.md) (contexto específico para Claude Code).
 
 ---
 
