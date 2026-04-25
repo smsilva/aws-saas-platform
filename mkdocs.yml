@@ -88,6 +88,10 @@ nav:
     - Customer Onboarding: customer-onboarding.md
     - Tenant Onboarding Spec: onboarding.md
     - Destroy the Lab: operations/destroy-lab.md
+    - Terraform:
+      - Overview: operations/terraform/README.md
+      - Modules: operations/terraform/modules.md
+      - Lab Deployment: operations/terraform/lab.md
 
   - Frontend:
     - Design System: design-system.md
