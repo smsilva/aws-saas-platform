@@ -283,9 +283,9 @@ Análise dos scripts do lab com foco em riscos reais para uso em produção ou c
 
 | ID | Severidade | Script | Problema |
 |---|---|---|---|
-| [SEC-002](docs/security-issues/sec-002.md) | Médio | `04-install-alb-controller` | IAM policy baixada do GitHub sem verificação de hash — risco de supply chain |
-| [SEC-003](docs/security-issues/sec-003.md) | Baixo | `08-deploy-sample-app` | Imagem `kennethreitz/httpbin` sem tag/digest fixo — `latest` implícito |
-| [SEC-004](docs/security-issues/sec-004.md) | Médio | `03-configure-access` | `AmazonEKSClusterAdminPolicy` com escopo de cluster inteiro — cluster-admin irrestrito |
-| [SEC-005](docs/security-issues/sec-005.md) | Baixo | `07-configure-alb-ingress` | Security Groups do ALB criados automaticamente — sem restrição de IP de origem |
-| [SEC-006](docs/security-issues/sec-006.md) | Médio | `02-create-cluster` | IMDSv1 habilitado por padrão — credenciais do node acessíveis via SSRF ou pod comprometido |
-| [SEC-007](docs/security-issues/sec-007.md) | Baixo | `09-configure-waf` | WAF sem rate limiting — sem proteção contra força bruta ou flood |
+| [SEC-002](docs/security/issues/sec-002.md) | Médio | `04-install-alb-controller` | IAM policy baixada do GitHub sem verificação de hash — risco de supply chain |
+| [SEC-003](docs/security/issues/sec-003.md) | Baixo | `08-deploy-sample-app` | Imagem `kennethreitz/httpbin` sem tag/digest fixo — `latest` implícito |
+| [SEC-004](docs/security/issues/sec-004.md) | Médio | `03-configure-access` | `AmazonEKSClusterAdminPolicy` com escopo de cluster inteiro — cluster-admin irrestrito |
+| [SEC-005](docs/security/issues/sec-005.md) | Baixo | `07-configure-alb-ingress` | Security Groups do ALB criados automaticamente — sem restrição de IP de origem |
+| [SEC-006](docs/security/issues/sec-006.md) | Médio | `02-create-cluster` | IMDSv1 habilitado por padrão — credenciais do node acessíveis via SSRF ou pod comprometido |
+| [SEC-007](docs/security/issues/sec-007.md) | Baixo | `09-configure-waf` | WAF sem rate limiting — sem proteção contra força bruta ou flood |

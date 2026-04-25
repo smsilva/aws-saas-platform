@@ -81,4 +81,4 @@ This ensures that a token issued for `customer1` is not accepted in namespace `c
 Cluster, node, and ALB Security Groups are created **automatically** by `eksctl` and the ALB Controller — no Security Groups are explicitly defined in the scripts.
 
 !!! warning "SEC-005"
-    Auto-managed Security Groups allow `0.0.0.0/0` inbound on the ALB by default. For production, dedicated Security Groups with source IP restrictions are recommended. See [SEC-005](../security-issues/sec-005.md).
+    Auto-managed Security Groups allow `0.0.0.0/0` inbound on the ALB by default. For production, dedicated Security Groups with source IP restrictions are recommended. See [SEC-005](../security/issues/sec-005.md).

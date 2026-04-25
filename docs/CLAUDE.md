@@ -6,10 +6,9 @@
 |---|---|
 | `architecture/` | Topology, traffic flow, technical decisions, formal specs |
 | `well-architected-framework/` | WAF Roadmap — 17 changes organized by pillar |
-| `security/` | Open/closed security issues, reviews |
+| `security/` | Open/closed security issues, reviews; individual issues in `security/issues/` |
 | `operations/` | Provisioning step-by-step, scripts 01-17 |
 | `services/` | Documentation for the 3 Python/FastAPI microservices |
-| `security-issues/` | Individual issues SEC-NNN (point-in-time, non-structural) |
 
 ## General rule
 

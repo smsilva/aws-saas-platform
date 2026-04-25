@@ -52,7 +52,7 @@ Creates the cluster via `eksctl` using the VPC from the previous step:
 - OIDC provider enabled (`withOIDC: true`) — required for IRSA
 
 !!! warning "SEC-006"
-    By default `eksctl` does not enforce IMDSv2 on nodes. See [SEC-006](../security-issues/sec-006.md).
+    By default `eksctl` does not enforce IMDSv2 on nodes. See [SEC-006](../security/issues/sec-006.md).
 
 ## 03. Configure access
 
@@ -63,7 +63,7 @@ Creates the cluster via `eksctl` using the VPC from the previous step:
 Updates the local `kubeconfig` and creates an access entry with `AmazonEKSClusterAdminPolicy` for the current IAM caller.
 
 !!! warning "SEC-004"
-    The `AmazonEKSClusterAdminPolicy` policy has cluster-wide scope. See [SEC-004](../security-issues/sec-004.md).
+    The `AmazonEKSClusterAdminPolicy` policy has cluster-wide scope. See [SEC-004](../security/issues/sec-004.md).
 
 ## 04. Install ALB Controller
 
@@ -77,7 +77,7 @@ Updates the local `kubeconfig` and creates an access entry with `AmazonEKSCluste
 4. Installs the controller via Helm
 
 !!! warning "SEC-002"
-    The IAM policy is downloaded without SHA256 hash verification. See [SEC-002](../security-issues/sec-002.md).
+    The IAM policy is downloaded without SHA256 hash verification. See [SEC-002](../security/issues/sec-002.md).
 
 ## 05. Install Istio
 
@@ -121,7 +121,7 @@ At the end, automatically creates the wildcard CNAME record in Azure DNS:
     The apex record `wasp.silvios.me` is created in step 07b with static IPs from Global Accelerator (CNAME at apex is invalid per RFC 1034; Azure DNS does not support ALIAS for external ALBs).
 
 !!! warning "SEC-005"
-    ALB Security Groups are created automatically by the controller, without source IP restriction. See [SEC-005](../security-issues/sec-005.md).
+    ALB Security Groups are created automatically by the controller, without source IP restriction. See [SEC-005](../security/issues/sec-005.md).
 
 ## 07b. Configure Global Accelerator
 
@@ -155,7 +155,7 @@ curl https://httpbin.wasp.silvios.me/get
 ```
 
 !!! warning "SEC-003"
-    The `kennethreitz/httpbin` image is used without a pinned digest. See [SEC-003](../security-issues/sec-003.md).
+    The `kennethreitz/httpbin` image is used without a pinned digest. See [SEC-003](../security/issues/sec-003.md).
 
 ## 09. Configure WAF
 
@@ -172,7 +172,7 @@ Creates a WebACL with AWS Managed Rules and associates it with the ALB:
 | `AWSManagedRulesAmazonIpReputationList` | Malicious IPs and botnets |
 
 !!! info "SEC-007 (Resolved)"
-    Rate limiting is not included in this script — it is added in step 15. See [SEC-007](../security-issues/sec-007.md).
+    Rate limiting is not included in this script — it is added in step 15. See [SEC-007](../security/issues/sec-007.md).
 
 ## 10. Create DynamoDB table
 
