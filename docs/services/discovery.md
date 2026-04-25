@@ -79,7 +79,7 @@ DynamoDB attribute to `TenantConfig` mapping:
 | `auth.M.cognito_user_pool_id` | `idp_pool_id` | Nested attribute in the `auth` map |
 
 !!! warning "DynamoDB — reserved words"
-    `auth` is a reserved word in DynamoDB. In `--update-expression`, use alias `#auth` with `--expression-attribute-names '{"#auth": "auth"}'`. See [operational gotchas](../operations/index.md#operational-gotchas).
+    `auth` is a reserved word in DynamoDB. In `--update-expression`, use alias `#auth` with `--expression-attribute-names '{"#auth": "auth"}'`. See [operational gotchas](../operations/README.md#operational-gotchas).
 
 ## IRSA
 

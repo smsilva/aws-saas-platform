@@ -22,17 +22,17 @@ Each change has `proposal.md`, `tasks.md`, and `design.md`.
 2. Check `<pillar>/changes/` — the change may already exist
 3. Check `<pillar>/changes/archive/` — it may have been attempted before
 4. Create `<pillar>/changes/<kebab-case-name>/proposal.md` and `tasks.md`
-5. Consult `index.md` to verify dependencies (e.g., P1 requires P0)
+5. Consult `README.md` to verify dependencies (e.g., P1 requires P0)
 
 ## Before proposing
 
-- `index.md` — execution order and dependencies between the 17 changes
+- `README.md` — execution order and dependencies between the 17 changes
 - P0 and P1 changes block others; verify status before proposing P2+
 - Cost overlap: check `cost/changes/tagging-savings-plans/` if tags are involved
 
 ## Change closing playbook
 
 1. Move permanent knowledge to `docs/architecture/` or `docs/services/`
-2. Update `index.md` if the execution order changes
+2. Update `README.md` if the execution order changes
 3. `mv <pillar>/changes/<name> <pillar>/changes/archive/YYYY-MM-<name>`
 4. Cancelled change: `-cancelled` suffix; note in `proposal.md` with reason

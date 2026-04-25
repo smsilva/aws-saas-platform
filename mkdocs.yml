@@ -71,16 +71,16 @@ markdown_extensions:
       title: Nesta página
 
 nav:
-  - Início: index.md
+  - Início: README.md
 
   - Architecture:
-    - architecture/index.md
+    - architecture/README.md
     - Traffic Flow: architecture/traffic-flow.md
     - Multi-tenant Authentication: multi-tenant-auth-flow.md
     - Technical Decisions: technical-decisions.md
 
   - Operations:
-    - operations/index.md
+    - operations/README.md
     - Step-by-Step: operations/step-by-step.md
     - Customer Onboarding: customer-onboarding.md
     - Destroy the Lab: operations/destroy-lab.md
@@ -89,16 +89,16 @@ nav:
     - Design System: design-system.md
 
   - Services:
-    - services/index.md
+    - services/README.md
     - Discovery: services/discovery.md
     - Platform Frontend: services/platform-frontend.md
     - Callback Handler: services/callback-handler.md
 
   - Security:
-    - security/index.md
-    - SEC-002 — IAM Policy sem hash: security-issues/sec-002.md
-    - SEC-003 — Imagem sem digest: security-issues/sec-003.md
-    - SEC-004 — cluster-admin irrestrito: security-issues/sec-004.md
-    - SEC-005 — Security Groups do ALB: security-issues/sec-005.md
-    - SEC-006 — IMDSv1 nos nodes: security-issues/sec-006.md
-    - SEC-007 — WAF sem rate limiting: security-issues/sec-007.md
+    - security/README.md
+    - SEC-002 — IAM Policy without hash: security/issues/sec-002.md
+    - SEC-003 — Image without digest: security/issues/sec-003.md
+    - SEC-004 — Unrestricted cluster-admin: security/issues/sec-004.md
+    - SEC-005 — ALB Security Groups: security/issues/sec-005.md
+    - SEC-006 — IMDSv1 on nodes: security/issues/sec-006.md
+    - SEC-007 — WAF without rate limiting: security/issues/sec-007.md

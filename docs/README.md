@@ -22,7 +22,7 @@ EKS lab that provisions a complete multi-tenant SaaS platform: VPC with public a
 | DynamoDB | AWS | `tenant-registry` table with tenant and IdP configuration |
 | Amazon Cognito | AWS | User Pool as federation hub, custom domain on ACM |
 
-For the detailed traffic flow and multi-region topology, see [Architecture](architecture/index.md).
+For the detailed traffic flow and multi-region topology, see [Architecture](architecture/README.md).
 
 ## waspctl project
 
@@ -38,7 +38,7 @@ This lab documents Phase 1 of the WASP platform: single cluster, custom Auth Ser
 
     Topology, detailed traffic flow, multi-tenant authentication, and technical decisions.
 
-    [:octicons-arrow-right-24: View Architecture](architecture/index.md)
+    [:octicons-arrow-right-24: View Architecture](architecture/README.md)
 
 -   **Operations**
 
@@ -46,7 +46,7 @@ This lab documents Phase 1 of the WASP platform: single cluster, custom Auth Ser
 
     Provisioning step-by-step (scripts 01–17), new tenant onboarding, and teardown.
 
-    [:octicons-arrow-right-24: View Operations](operations/index.md)
+    [:octicons-arrow-right-24: View Operations](operations/README.md)
 
 -   **Services**
 
@@ -54,7 +54,7 @@ This lab documents Phase 1 of the WASP platform: single cluster, custom Auth Ser
 
     The three Python/FastAPI microservices: Discovery, Platform Frontend, and Callback Handler.
 
-    [:octicons-arrow-right-24: View Services](services/index.md)
+    [:octicons-arrow-right-24: View Services](services/README.md)
 
 -   **Security**
 
@@ -62,6 +62,6 @@ This lab documents Phase 1 of the WASP platform: single cluster, custom Auth Ser
 
     Security review of the scripts with severity, attack vector, and mitigation status.
 
-    [:octicons-arrow-right-24: View Security](security/index.md)
+    [:octicons-arrow-right-24: View Security](security/README.md)
 
 </div>

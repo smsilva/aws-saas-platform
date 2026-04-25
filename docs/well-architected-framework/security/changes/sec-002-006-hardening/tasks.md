@@ -35,6 +35,6 @@
 
 ## Final
 
-- [ ] Update `docs/security/index.md` — mark all five issues resolved
+- [ ] Update `docs/security/README.md` — mark all five issues resolved
 - [ ] Run `make test` — all tests pass
 - [ ] Commit with `fix(scripts): remediate SEC-002, SEC-003, SEC-005, SEC-006`

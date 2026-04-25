@@ -2,7 +2,7 @@
 
 ## What lives here
 
-- Topology and traffic flow (`index.md`, `traffic-flow.md`)
+- Topology and traffic flow (`README.md`, `traffic-flow.md`)
 - Formal component specs — natural language requirements documents
 - Links to `../technical-decisions.md` and `../multi-tenant-auth-flow.md`
 
@@ -24,7 +24,7 @@
 ## Change closing playbook
 
 1. Move permanent knowledge to:
-   - `index.md` or `traffic-flow.md` (topology/routing)
+   - `README.md` or `traffic-flow.md` (topology/routing)
    - `../technical-decisions.md` (design decision)
    - corresponding spec file (formal requirement)
 2. `mv changes/<name> changes/archive/YYYY-MM-<name>`
