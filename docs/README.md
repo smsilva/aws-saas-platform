@@ -26,7 +26,7 @@ For the detailed traffic flow and multi-region topology, see [Architecture](arch
 
 ## waspctl project
 
-This lab documents Phase 1 of the WASP platform: single cluster, custom Auth Service, and manual multi-tenant authentication via scripts. The [`waspctl`](https://github.com/silviosilva/waspctl) project is being developed as a CLI to automate provisioning of this same topology in Phases 2 and 3 (separate platform-clusters + multi-region expansion with Global Accelerator).
+This lab documents Phase 1 of the WASP platform: single cluster, custom Auth Service, and manual multi-tenant authentication via scripts. The [`waspctl`](https://github.com/smsilva/waspctl) project is being developed as a CLI to automate provisioning of this same topology in Phases 2 and 3 (separate platform-clusters + multi-region expansion with Global Accelerator).
 
 ## Navigation
 

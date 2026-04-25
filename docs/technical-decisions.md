@@ -18,7 +18,7 @@ Articles that informed the architecture of this lab:
 
 **Status:** Phase 1 in progress; Phases 2 and 3 planned
 
-This lab manually implements Phase 1 infrastructure. In parallel, the [`waspctl`](https://github.com/silviosilva/waspctl) project is being developed as a CLI to automate provisioning of this same topology.
+This lab manually implements Phase 1 infrastructure. In parallel, the [`waspctl`](https://github.com/smsilva/waspctl) project is being developed as a CLI to automate provisioning of this same topology.
 
 | Phase | Description | State |
 |---|---|---|
