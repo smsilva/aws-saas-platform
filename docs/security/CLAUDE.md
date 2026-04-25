@@ -1,4 +1,4 @@
-# seguranca/ — Security
+# security/ — Security
 
 ## What lives here
 

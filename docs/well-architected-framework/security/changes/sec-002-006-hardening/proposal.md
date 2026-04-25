@@ -24,7 +24,7 @@ Fix all five open issues in a single change:
 
 ## Success Criteria
 
-- All five issues are marked resolved in `docs/seguranca/index.md`
+- All five issues are marked resolved in `docs/security/index.md`
 - `scripts/04-install-alb-controller` verifies the IAM policy hash before applying it
 - `scripts/08-deploy-sample-app` uses a pinned image digest
 - `scripts/03-configure-access` uses namespace-scoped access or documents the cluster-admin grant as intentional lab-only

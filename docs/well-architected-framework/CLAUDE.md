@@ -32,7 +32,7 @@ Each change has `proposal.md`, `tasks.md`, and `design.md`.
 
 ## Change closing playbook
 
-1. Move permanent knowledge to `docs/arquitetura/` or `docs/servicos/`
+1. Move permanent knowledge to `docs/architecture/` or `docs/services/`
 2. Update `index.md` if the execution order changes
 3. `mv <pillar>/changes/<name> <pillar>/changes/archive/YYYY-MM-<name>`
 4. Cancelled change: `-cancelled` suffix; note in `proposal.md` with reason

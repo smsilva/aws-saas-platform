@@ -483,4 +483,4 @@ GET /callback?code=<code>&state=<state-jwt>
 
 ## Open decisions
 
-See [decisoes-tecnicas.md](decisoes-tecnicas.md) for the detailed record of each pending decision and the trade-offs considered.
+See [technical-decisions.md](technical-decisions.md) for the detailed record of each pending decision and the trade-offs considered.

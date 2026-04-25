@@ -53,6 +53,6 @@ customer1-us-east-1  customer1-us-west-1         customer2-ap-east-1
 
 ## Pages in this section
 
-- [Traffic Flow](fluxo-trafego.md) — details of the ALB → WAF → Istio → App stack
-- [Multi-tenant Authentication](../fluxo-autenticacao-multitenant.md) — login flow, Cognito, DynamoDB, and JWT isolation
-- [Technical Decisions](../decisoes-tecnicas.md) — trade-offs and open decision backlog
+- [Traffic Flow](traffic-flow.md) — details of the ALB → WAF → Istio → App stack
+- [Multi-tenant Authentication](../multi-tenant-auth-flow.md) — login flow, Cognito, DynamoDB, and JWT isolation
+- [Technical Decisions](../technical-decisions.md) — trade-offs and open decision backlog

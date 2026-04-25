@@ -37,6 +37,6 @@ helm list -A
 ## Imports
 
 @docs/CLAUDE.md
-@docs/arquitetura/CLAUDE.md
+@docs/architecture/CLAUDE.md
 @docs/well-architected-framework/CLAUDE.md
-@docs/seguranca/CLAUDE.md
+@docs/security/CLAUDE.md

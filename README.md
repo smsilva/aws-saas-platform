@@ -31,7 +31,7 @@ Provisionar um cluster EKS com VPC pública e privada, onde o tráfego de entrad
 
 ### Fluxo de tráfego
 
-Ver [docs/arquitetura/fluxo-trafego.md](docs/arquitetura/fluxo-trafego.md).
+Ver [docs/architecture/traffic-flow.md](docs/architecture/traffic-flow.md).
 
 ### Topologia
 
@@ -64,9 +64,9 @@ customer1-us-east-1  customer1-us-west-1             customer2-ap-east-1
 
 O design do fluxo de login, incluindo suporte a múltiplos IdPs por tenant (Google SSO, Microsoft, Okta, Auth0, Keycloak), arquitetura de dados no DynamoDB e integração com Cognito e Istio, está documentado em:
 
-- **[Arquitetura de Autenticação Multi-tenant](docs/fluxo-autenticacao-multitenant.md)**
-- **[Decisões Técnicas e Trade-offs](docs/decisoes-tecnicas.md)**
-- **[Onboarding de Novo Customer](docs/onboarding-novo-customer.md)**
+- **[Multi-tenant Authentication Architecture](docs/multi-tenant-auth-flow.md)**
+- **[Technical Decisions and Trade-offs](docs/technical-decisions.md)**
+- **[Customer Onboarding](docs/customer-onboarding.md)**
 
 **Ferramentas:** 
 
@@ -265,12 +265,12 @@ lab/aws/eks/
 
 | Localização | Conteúdo |
 |---|---|
-| [`docs/arquitetura/`](docs/arquitetura/) | Topologia, fluxo de tráfego, specs formais de componentes |
-| [`docs/well-architected-framework/`](docs/well-architected-framework/) | Roadmap de produção — 17 changes organizadas pelos 6 pilares WAF |
-| [`docs/seguranca/`](docs/seguranca/) | Revisão de segurança, issues abertas e fechadas |
-| [`docs/operacoes/`](docs/operacoes/) | Passo a passo de provisionamento (scripts 01–17) |
-| [`docs/servicos/`](docs/servicos/) | Microserviços `discovery`, `platform-frontend`, `callback-handler` |
-| [`docs/decisoes-tecnicas.md`](docs/decisoes-tecnicas.md) | Decisões de design, trade-offs e itens adiados conscientemente |
+| [`docs/architecture/`](docs/architecture/) | Topology, traffic flow, formal component specs |
+| [`docs/well-architected-framework/`](docs/well-architected-framework/) | Production roadmap — 17 changes organized by the 6 WAF pillars |
+| [`docs/security/`](docs/security/) | Security review, open and closed issues |
+| [`docs/operations/`](docs/operations/) | Provisioning step-by-step (scripts 01–17) |
+| [`docs/services/`](docs/services/) | Microservices `discovery`, `platform-frontend`, `callback-handler` |
+| [`docs/technical-decisions.md`](docs/technical-decisions.md) | Design decisions, trade-offs, and consciously deferred items |
 | [`HANDOFF.md`](HANDOFF.md) | Estado da sessão atual e tarefas em aberto |
 
 **Para agentes de IA:** ver [`AGENTS.md`](AGENTS.md) (ponto de entrada para Cursor, Copilot, Gemini CLI e outros) e [`CLAUDE.md`](CLAUDE.md) (contexto específico para Claude Code).

@@ -93,7 +93,7 @@ Completo e validado end-to-end em `local/`. Fluxo de autenticação multi-tenant
 |---|---|
 | `docs/metadata-diff.md` | Diff completo bash vs Terraform (campos críticos EKS) |
 | `local/docs/lessons-learned.md` | Gotchas do lab local k3d |
-| `docs/decisoes-tecnicas.md` | Decisões de design e trade-offs |
+| `docs/technical-decisions.md` | Decisões de design e trade-offs |
 | `CLAUDE.md` | Contexto operacional (domínios, credenciais, regras TDD) |
 
 - [Building a Multi-Tenant SaaS Solution Using Amazon EKS](https://aws.amazon.com/pt/blogs/apn/building-a-multi-tenant-saas-solution-using-amazon-eks)

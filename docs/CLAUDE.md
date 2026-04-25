@@ -4,11 +4,11 @@
 
 | Folder | Content |
 |---|---|
-| `arquitetura/` | Topology, traffic flow, technical decisions, formal specs |
+| `architecture/` | Topology, traffic flow, technical decisions, formal specs |
 | `well-architected-framework/` | WAF Roadmap — 17 changes organized by pillar |
-| `seguranca/` | Open/closed security issues, reviews |
-| `operacoes/` | Provisioning step-by-step, scripts 01-17 |
-| `servicos/` | Documentation for the 3 Python/FastAPI microservices |
+| `security/` | Open/closed security issues, reviews |
+| `operations/` | Provisioning step-by-step, scripts 01-17 |
+| `services/` | Documentation for the 3 Python/FastAPI microservices |
 | `security-issues/` | Individual issues SEC-NNN (point-in-time, non-structural) |
 
 ## General rule
@@ -23,7 +23,7 @@ Any significant change in any `docs/` folder must be proposed as a change before
 
 1. Read the CLAUDE.md of the target folder
 2. Check `changes/` in progress for that folder
-3. Check if there is a formal spec (`*-spec.md`) relevant to the topic
+3. Check if there is a formal spec relevant to the topic (in `docs/architecture/` or service docs)
 
 ## Date convention
 

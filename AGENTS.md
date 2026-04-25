@@ -54,10 +54,10 @@ mkdocs serve
 | Location | Content |
 |---|---|
 | `docs/` | Full documentation index — start here |
-| `docs/arquitetura/` | Architecture, traffic flow, formal specs (`*-spec.md`) |
+| `docs/architecture/` | Architecture, traffic flow, formal specs |
 | `docs/well-architected-framework/` | 17 WAF improvement changes organized by pillar |
-| `docs/seguranca/` | Security issues index and review |
-| `docs/operacoes/` | Provisioning step-by-step (scripts 01–17) |
-| `docs/servicos/` | Microservice documentation |
-| `docs/decisoes-tecnicas.md` | Design decisions and trade-offs |
+| `docs/security/` | Security issues index and review |
+| `docs/operations/` | Provisioning step-by-step (scripts 01–17) |
+| `docs/services/` | Microservice documentation |
+| `docs/technical-decisions.md` | Design decisions and trade-offs |
 | `HANDOFF.md` | Current session state and open tasks |

@@ -73,29 +73,29 @@ markdown_extensions:
 nav:
   - Início: index.md
 
-  - Arquitetura:
-    - arquitetura/index.md
-    - Fluxo de Tráfego: arquitetura/fluxo-trafego.md
-    - Autenticação Multi-tenant: fluxo-autenticacao-multitenant.md
-    - Decisões Técnicas: decisoes-tecnicas.md
+  - Architecture:
+    - architecture/index.md
+    - Traffic Flow: architecture/traffic-flow.md
+    - Multi-tenant Authentication: multi-tenant-auth-flow.md
+    - Technical Decisions: technical-decisions.md
 
-  - Operações:
-    - operacoes/index.md
-    - Passo a Passo: operacoes/passo-a-passo.md
-    - Onboarding de Customer: onboarding-novo-customer.md
-    - Destruir o Lab: operacoes/destruir-lab.md
+  - Operations:
+    - operations/index.md
+    - Step-by-Step: operations/step-by-step.md
+    - Customer Onboarding: customer-onboarding.md
+    - Destroy the Lab: operations/destroy-lab.md
 
   - Frontend:
     - Design System: design-system.md
 
-  - Serviços:
-    - servicos/index.md
-    - Discovery: servicos/discovery.md
-    - Platform Frontend: servicos/platform-frontend.md
-    - Callback Handler: servicos/callback-handler.md
+  - Services:
+    - services/index.md
+    - Discovery: services/discovery.md
+    - Platform Frontend: services/platform-frontend.md
+    - Callback Handler: services/callback-handler.md
 
-  - Segurança:
-    - seguranca/index.md
+  - Security:
+    - security/index.md
     - SEC-002 — IAM Policy sem hash: security-issues/sec-002.md
     - SEC-003 — Imagem sem digest: security-issues/sec-003.md
     - SEC-004 — cluster-admin irrestrito: security-issues/sec-004.md

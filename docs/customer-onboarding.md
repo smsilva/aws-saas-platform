@@ -40,7 +40,7 @@ The shared IdP case is detailed in the [Multiple domains on the same IdP](#multi
 | Type | `provider-type` in AWS CLI | When to use |
 |---|---|---|
 | Google (personal account / Workspace) | `OIDC` with `oidc_issuer=https://accounts.google.com` | Maximum one `Google` (social) IdP per User Pool — use OIDC for the others |
-| Microsoft (MSA personal accounts) | `OIDC` with fixed GUID issuer `9188040d-6c67-4c5b-b112-36a304b66dad` | See `docs/decisoes-tecnicas.md` |
+| Microsoft (MSA personal accounts) | `OIDC` with fixed GUID issuer `9188040d-6c67-4c5b-b112-36a304b66dad` | See `docs/technical-decisions.md` |
 | Microsoft (corporate Azure AD / Google Workspace federated via AD) | `OIDC` with `oidc_issuer=https://login.microsoftonline.com/<tenant-id>/v2.0` | Use the organization's real tenant ID |
 | Any other OIDC provider | `OIDC` | Okta, Auth0, Keycloak, etc. |
 

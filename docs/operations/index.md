@@ -54,6 +54,6 @@ All scripts are in `scripts/`. Global configuration is in `scripts/env.conf`.
 
 ## Pages in this section
 
-- [Step-by-Step](passo-a-passo.md) — detailed execution of scripts 01–17
-- [Customer Onboarding](../onboarding-novo-customer.md) — how to add a new tenant
-- [Destroy the Lab](destruir-lab.md) — full and partial teardown
+- [Step-by-Step](step-by-step.md) — detailed execution of scripts 01–17
+- [Customer Onboarding](../customer-onboarding.md) — how to add a new tenant
+- [Destroy the Lab](destroy-lab.md) — full and partial teardown
