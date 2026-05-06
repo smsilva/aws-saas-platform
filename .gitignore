@@ -20,7 +20,7 @@ override.tf.json
 **/.terraform.lock.hcl
 
 # Claude Code — configurações locais pessoais
-.claude/settings.local.json
+.claude/**
 .mcp.json
 
 # Logs e artefatos temporários
