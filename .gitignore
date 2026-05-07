@@ -23,6 +23,9 @@ override.tf.json
 .claude/**
 .mcp.json
 
+# Jira — configurações e tasks locais
+.jira/
+
 # Logs e artefatos temporários
 **/*.log
 **/docker_build_temp
