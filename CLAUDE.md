@@ -56,7 +56,7 @@ Verify with:
 
 ## Imports
 
-@docs/CLAUDE.md
-@docs/architecture/CLAUDE.md
-@docs/well-architected-framework/CLAUDE.md
-@docs/security/CLAUDE.md
+@docs/CLAUDE.md  
+@docs/architecture/CLAUDE.md  
+@docs/well-architected-framework/CLAUDE.md  
+@docs/security/CLAUDE.md  
